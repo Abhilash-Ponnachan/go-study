@@ -4,7 +4,7 @@
 
 ### About Go
 
-
+<To do>
 
 #### Go Playground
 
@@ -117,7 +117,10 @@ $ tree `go env GOROOT` -L 2
 The `go` tool is strongly convention based, and requires us to organise our code in a specific structure. 
 
 - It expects our code to exist in a **`workspace`** (which is really just a directory within which all our `Go` projects are located). 
-- Within the **`workspace`** we should have a **`src`** for all the source code. It would also have **`bin`** and **`lib`** for compiled binaries (executables and libraries).
+- Within the **`workspace`** we should have a **`src`** for all the source code. It would also have **`bin`** and **`pkg`** for compiled binaries (executables and libraries).
+  - **`src`** - This directory is the location for `Go` source code files (our own or what we pull from others).
+  - **`pkg`** - This is where `Go` will place all the non-executable package "object files", also called "package archives" therefore they have "**`.a`**" extension. It is similar to the "**`.o`**" object files in **`C/C++`**, used at the "linking" stage to form the final executable.
+  - **`bin`** - Contains compiled executable programs. When we run `go install` on a program/package directory, the `go` tool will install the executable to this `bin` directory.
 - Within **`src`** we we would have directories for version controlled repositories (`Git` repos for example).
 - Each **repo** would have **package** directories, where package is the compiled unit of code that provides encapsulation, modularity, reuse etc.
 - Each **package** directory contains one or more `Go` source code files, and all files within a directory belong to a single package. The directory name would normally be the **package** name.
@@ -257,4 +260,128 @@ The `$GOPATH`  environment variable serves TWO purposes, namely:
     - This is where **`Go` Modules** can help us break free of this constraint, and is now the recommended way to organise our `Go` code.
 
 ### Go Modules
+
+<To Do>
+
+### `go` commands `run`, `build`, `install`
+
+These are the most common `go` commands that we use while writing and testing out `Go` code.
+
+- **`run`** - We execute `go run` within the package directory on a `Go` source file, provided that it is an executable package, and this will build the binary and execute the `main` (entry point) code. However this is ephemeral and the the binary is not persisted.
+
+- **`build`** - The `go build` command will compile the specified package (default is the current package/directory), and all the packages it depends on, then invokes the _linker_ to generate an executable binary and puts it in the current directory.
+
+  If we ant to specify an output path we can do so with the `-o` flag.
+
+  ```bash
+  $ go build -o=/tmp/foo	.	# build the '.' current package and output to '/tmp/foo'
+  ```
+
+  From `Go 1.10` onward the `go build` tool _caches_ the build result in the _build cache_ which will be reused appropriately by the tool chain. This dramatically speeds up the build process. We can see the _build cache_ path with `go env GOCACHE` environment variable.
+
+  If we want to _force_ a rebuild of all packages ignoring the _cache_ we can use the `-a` flag. Sometimes we need to do this when `Go` cannot detect the changes to the dependencies automatically, like with `cgo` imports (for `C` code). Also we can clear the _cache_ with the `go clean -cache` command
+
+  ```bash
+  $ go build -a 
+  $ go clean -cache
+  ```
+
+  Another useful option is the `-x` switch that shows all the commands and steps executed to generate the build (this is like _verbose_ option in some other languages).
+
+  Lastly a related command that can help us to see all the "dependencies" for our package is the `go list` command.
+
+  ```bash
+  $ go list -dep . | sort -u
+  errors
+  fmt
+  github.com/alex/hello
+  github.com/alex/strutil
+  internal/bytealg
+  internal/cpu
+  internal/fmtsort
+  internal/oserror
+  internal/poll
+  internal/race
+  internal/reflectlite
+  internal/syscall/execenv
+  internal/syscall/unix
+  internal/testlog
+  internal/unsafeheader
+  io
+  math
+  math/bits
+  os
+  reflect
+  runtime
+  runtime/internal/atomic
+  runtime/internal/math
+  runtime/internal/sys
+  sort
+  strconv
+  sync
+  sync/atomic
+  syscall
+  time
+  unicode
+  unicode/utf8
+  unsafe
+  ```
+
+  _Most of these are default imported with runtime, `fmt` is explicitly imported from the 'standard library', and only the `github.com/alex/strutil` is our own dependency_.
+
+- **`install`** - This will _build_ and deploy the package in the `$GOPATH/bin` or `$GOPATH/pkg` directory. If the package is a _main_ package (executable) it will be installed in the the `bin` and otherwise it will go to the `pkg` directory. A `go install` with our simple project might look like:
+
+  ```bash
+  $ tree
+  .
+  ├── bin
+  │   └── hello						# installed main binary executable
+  ├── pkg
+  │   └── linux_amd64
+  │       └── github.com
+  │           └── abhilash-ponnachan
+  │               └── strutil.a		# lib package 'archive' file
+  └── src
+      └── github.com
+          └── abhilash-ponnachan
+              ├── hello        		# main package  
+              │   └── hello.go		# main package code
+              └── strutil				# lib package that 'main'depends on
+                  └── strutil.go		# lib package code
+  ```
+
+  _The `.a` extension for the package in the `pkg` stands for 'archive' file, which is just an 'object' file like in `C/C++`._
+
+### `gofmt`  - formatting `Go` code
+
+`Go` is very prescriptive about the _"style"_ of the code and it has a standard that is considered idiomatic. The philosophy behind this is to encourage a common generally accepted standard for development in large teams (without getting into subjective preferences). We can apply the standard `Go` formatting to our source code with the `gofmt` command. 
+
+```bash
+$ gofmt -w hello.go		# -w flag will overwrite the source file after formatting
+$ gofmt -w -l util/		# format all files in `util/` dierctory and '-l' to list the cahnged files
+```
+
+With IDEs such as 'VS Code' the `gofmt` can work automatically when we save the file to keep the code in standard format continuously.
+
+We can also use the `go fmt` command, which does the same thing.
+
+```bash
+$ go fmt				# format all source code in the current directory
+```
+
+
+
+## Go Basics
+
+### Variables
+
+### Types
+
+### Control Flow
+
+#### Conditionals
+
+#### Loops
+
+
 
