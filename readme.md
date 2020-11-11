@@ -4,13 +4,21 @@
 
 ### About Go
 
-<To do>
+The `Go` programming language had its inception in 2007 at Google when the three computing veterans Rob Pike, Robert Griesemer, and Ken Thompson decide to create a new system programming language for the types of engineering challenges that they were facing in Google.
 
-#### Go Playground
+[To Do]
+
+##### Compiled
+
+`Go` is compiled ahead of time to _native machine code_, like `C/C++`, or `Rust`and unlike `Java`, `JavaScript`, or `.Net` (which have intermediate code executed by a _"virtual machine"_). 
+
+`Go` programs do however require runtime language services such as stack management, garbage collection, concurrency etc. In `Go` these are provided by the `runtime` library (which is part of the _standard library_). This gets included into every `Go` program. This is analogous to `libc` in `C`.
+
+[To Do]
+
+###### Go Playground
 
 Online code playground for **`Go`** => `https://play.golang.org`
-
-
 
 #### Standard Library
 
@@ -375,7 +383,99 @@ $ go fmt				# format all source code in the current directory
 
 ### Variables
 
+- In `Go` we can declare a variable using the `var` keyword, followed by the name and then the type (type comes after variable name unlike `C` syntax).
+
+- We can also initialise the variable with a value along with the declaration.
+
+  ```go
+  var age int					// decalre variable with type
+  age = 23					// initialize value
+  
+  var name string = "Alan"	// initialize with declaration
+  
+  var greeting = "Hello"		// type will be infered, avoid specifying type if Go can infer
+  ```
+
+  
+
+- Note that `Go` is able to _infer_ the type from the assigned value, so it is not needed to specify the type if we are assigning a value. In fact the `go` tool will complain with a _warning_ that we do not have to explicitly specify type when `Go` can infer it.
+
+- The shorthand notation for _declaring_ a variable and _initialising_ it is using the `:=` operator. Note, in this form we do not use the `var` keyword, nor the type. Note that this works only for local (block) scoped variables.
+
+  ```go
+  score := 130				// initilaize and declare local variables with shorthand notation
+  ```
+
+- `Go` does not allow us to _declare_ variables that are not used in the code (the compiler will throw an error). This helps keep the code clean. There may be rare situations where we might need to have a variable which may not be used (generally when importing packages that have only _init_ functions for example). In such situations we can use the _'blank identifier'_ (`_`) (_on the LHS of assignment_).
+
+  ##### Multiple Declarations
+
+- `Go` allows us to declare (and also assign values) multiple variables in in a single line (or statement). We can do this using the `:=` operator or the `var` keyword.
+
+  ```go
+  greeting, name, age := "Hello", "Alan", 23		// declare 3 new variables and assign values
+  
+  greeting, age = "Hola", 25						// note we use '=', as no new variables just changing values
+  
+  age, active := 27, true							// note we use ':=' as we have at least one new variable 'active'
+  ```
+
+  If we want to declare multiple variables in a single statement outside of _block scope_ we can use the `var` keyword along with the variables in `()`.
+
+  ```go
+  var (
+      name string
+      greeting string
+      age int
+  )
+  name, greeting, age = "Alan", "Hola", 27
+  ```
+
+  Of course we could have initialised the variables along with the declaration.
+
+  ```go
+  var (
+      name string = "Alan"
+      greeting string = "Hello"
+      age int = 23
+  )
+  ```
+
+  If we want it all in one line we could separate the variables using `;`.
+
+  ```go
+  var (
+      name string = "Alan"; greeting string = "Hello"; age int = 23
+   )
+  ```
+
+  However this is not considered clean idiomatic `Go` code, and if we do `go fmt` then it will reformat it to split them neatly across lines.
+
+- If we have multiple variables with the same _type_ we do not need to repeat the _type_, we can just specify that once after the variables (clubbed together).
+
+  ```go
+  var name, greeting string, age int
+  ```
+
+- This ability for multiple declarations and assignments in `Go` comes with an interesting shorthand syntax for _"swapping"_ variable values.
+
+  ```go
+  func main() {
+    x, y := 10, 20
+    fmt.Println("x =", x, ", y =", y) // x = 10, y = 20
+    // swap in one line
+    y, x = x, y
+    fmt.Println("x =", x, ", y =", y) // x = 20, y = 10
+  }
+  ```
+
+  Note, how we swapped the values of the variables without using an intermediate variable!
+
+- Like most other languages, in `Go` we have to define a variable before it can be used.
+
 ### Types
+
+##### Zero Values
 
 ### Control Flow
 
