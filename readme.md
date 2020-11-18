@@ -475,7 +475,157 @@ $ go fmt				# format all source code in the current directory
 
 ### Types
 
+`Go` is a _statically typed_ language, which means the type of a variable has to be determined before compile and cannot change thereafter. Many of the mainstream languages like `C\C++`, `Java`, `C#` are all statically typed. Some other popular languages such as `JavaScript`, `Python`, `Ruby` are _dynamically typed_ and the type (memory structure) of the data referenced by variables is determined and bound at runtime.
+
+`Go` gives us the benefits of `static typing` such as compile time type-checks that can catch type related errors ahead of time, as well as certain performance optimisations that the compiler can do (since the data type does not change), all without getting the noise of type declarations in the way. It has good _type inference_.
+
+##### Basic Types
+
+The _"basic data types"_ in `Go` are **integers** (`int`), **floating point numbers** (`float`), **strings** (`string`), and **boolean** (`bool`). These are the _"primitive types"_ from which other composite types are built as needed.
+
+- **Integers**
+
+  _Integers_ in `Go` range from **8 bits** to **64 bits**, and they can be **signed** or **unsigned** (this is typical of most programming languages). We can specify the exact memory type of the _integer_ we want using `int8`, `int16`, `int32`, `int64` or their unsigned variants `uint8`, `uint16`, `uint32`, `uint64` . Commonly though we would simply use the `int` or `uint` types which refer to the _32_ bit or _64_ bit version depending of the default word size of our CPU and OS.
+
+  `Go` is _strongly typed_ and will complain if we try to assign values to variables that do not have an exact data type match.
+
+  ```go
+  var a int8 = 127
+  var b int16
+  
+  b = a			// Error : cannot use type int8 as value in assignment to int16 !!
+  ```
+
+  For dealing with _binary_ data or _characters_ we would use `byte` and `rune` which are really just `uint8` and `uint32` respectively.
+
+  ```go
+  var a uint8 = 127
+  var b byte
+  
+  b = a			// This is OK
+  ```
+
+- **Floating Point**
+
+  Like almost any other programming language `Go` support _'Real numbers'_ using floating point notation (`IEEE 754` standard). We specify this type using `float64` or `float32`.
+
+  ```go
+  var n, d float32 = 22.0, 7.0
+  p := n / d
+  fmt.Println("p =", p, reflect.TypeOf(p))		// p = 3.142857 float32
+  ```
+
+  Here we specified the type of `n` and `d` variables as `float32` and the division resulted in assigning `p` as `float32` as well.
+
+  _Note: How we determined the 'type' of the variable at runtime using 'reflection', with the `reflect` package. We had to import that package and it is part of the 'standard library'._
+
+  If we had not specified the 'type' of the operands explicitly and let `Go` infer all of it it would default depending on the architecture/OS.
+
+  ```go
+  var n, d = 22.0, 7.0
+  p := n / d
+  fmt.Println("p =", p, reflect.TypeOf(p))		// p =  3.142857142857143 float64
+  ```
+
+  We have to keep in mind that _'Real number'_ operations with computers are not exactly accurate, as the numbers are represented ultimately as `Binary` and in this process we lose some precision, therefore the resulting operations on these lose accuracy. 
+
+  ```go
+  a, b := 0.1, 0.2
+  fmt.Println(a, " + ", b, " == 0.3 ->", (a + b) == 0.3)			// 0.1  +  0.2  == 0.3 -> false
+  fmt.Println(a, " + ", b, " = ", a + b)							// 0.1  +  0.2  =  0.30000000000000004
+  ```
+
+  With `float64` we cannot get `0.1 + 0.2` as `0.3` exactly.
+
+  In this situation _'reducing the precision'_ actually results in correct behaviour!!
+
+  ```go
+  var a, b float32 = 0.1, 0.2
+  fmt.Println(a, " + ", b, " == 0.3 ->", (a + b) == 0.3)			// 0.1  +  0.2  == 0.3 -> true
+  fmt.Println(a, " + ", b, " = ", a + b)							// 0.1  +  0.2  =  0.3
+  ```
+
+  We can also _cast_ from one numeric type to the other if needed by prefixing the value with the required type in parentheses.
+
+  ```go
+  a, b := 0.1, 0.2
+  fmt.Println(a, " + ", b, " == 0.3 ->", float32(a + b) == 0.3)		// 0.1  +  0.2  == 0.3 -> true
+  fmt.Println(a, " + ", b, " = ", float32(a + b))						// 0.1  +  0.2  =  0.3
+  ```
+
+  In short we have to be mindful of the fact that we cannot exactly represent _'Real numbers'_ accurately and if very high accuracy is needed (like in financial or scientific computing), it is better to use specialised libraries (packages).
+
+- **Strings**
+
+  In this section we will take a quick high-level look at `string` data type, enough to help us use it in our code examples. However there is a lot more to _Strings_ in `Go` if we wish to really understand it in detail, especially how it is encoded in memory and what that means when we deal with _Unicode_ text. We shall look that later, as in order to do that we need to cover composite data structures like _Arrays_ and _Slices_ before that. For now we shall look at _string literals_ and simple _string operations_.
+
+  _String literals_ in `Go` are declared by enclosing characters with _double quotes_ (`""`) or _back quotes_(`` ` ` ``).
+
+  - _Double quotes_ (`""`) : _String literals_ within `""` allow us to specify escape characters (such as `\t` or `\n` etc.) within it.
+  - _Back quotes_ (`` ` ` ``) : Whatever is specified within `` ` ` `` is treated exactly as it is (literally), which means we cannot apply escape characters.
+
+  ```go
+  var a string 
+  a = "Tab\tseperated"
+  b := "New\nline"
+  c := `No\tescape\nat "All"`
+  fmt.Println(a)			// Tab seperated
+  fmt.Println(b)			// New
+  						// line
+  fmt.Println(c)			// No\tescape\nat "All"
+  ```
+
+  - **Length**
+
+    We can use the builtin `len` function to get the length of a `string`.
+
+    ```go
+     a := "This string has 30 characters."
+     fmt.Println(len(a)) 						// 30
+    ```
+
+    However we have to be careful when using `len` because it really returns the _"number of bytes"_ in the string! Which implies that since `Go` uses **UTF-8** encoding, for characters that use multi-byte (beyond common **ASCII** range), the `len` function can be confusing. For example.
+
+    ```go
+     b := "∑"
+     fmt.Println(len(b)) 						// 3
+    ```
+
+    Here `∑` is only one character but it requires **3 bytes** () to represent in **UTF-8**, `len` will return **3** !!
+
+  - **Concatenation**
+
+  - **Substring**
+
+  - **Formatting**
+
+- **Boolean**
+
+  A _Boolean_ type is probably the simplest data type with either of two values `true` or `false`. It supports the standard _logical operations_, namely _and_ (`&&`), _or_ (`||`), _not_ (`!`).
+
+  ```go
+  var a bool = true
+  var b = false
+  c := true
+  
+  fmt.Println("a && b =", a && b)					// false
+  fmt.Println("a || b =", a || b)					// true
+  fmt.Println("!a =", !a)							// false
+  fmt.Println("a || b && c =", a && b || c)		// true
+  ```
+
+  _Note: `Go` does not have a built-in 'logical XOR' operator, though we can express it using a combination of other operators._
+
+  ```go
+  // XOR = (v1 OR v2) AND NOT(v1 AND v2)
+  fmt.Println("a XOR c =", (a || c) && !(a && c))   	// fasle
+  // XOR = (v1 NOT EQUAL v2) for Boolean
+  fmt.Println("a XOR c =", (a != c))   				// false
+  ```
+
 ##### Zero Values
+
+All variables in `Go` are initialised to their corresponding _zero values_.
 
 ### Control Flow
 
