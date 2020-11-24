@@ -588,16 +588,167 @@ The _"basic data types"_ in `Go` are **integers** (`int`), **floating point numb
 
     ```go
      b := "∑"
-     fmt.Println(len(b)) 						// 3
+     fmt.Println(len(b)) 						// 3 !!
     ```
 
-    Here `∑` is only one character but it requires **3 bytes** () to represent in **UTF-8**, `len` will return **3** !!
+    Here `∑` is only one character but since it requires **3 bytes** () to represent in **UTF-8**, `len` will return **3** !!
+
+    We shall examine this in detail later when we learn about how `Go`represents _strings_ and how to deal with multi-byte characters.
 
   - **Concatenation**
 
+    Like in most other languages we can use the **`+`** operator to concatenate two _strings_. The result will be a _new string_. Again similar to other languages _strings_ are **immutable** (that is the sequence of bytes associated with a _string_ cannot be changed). We can of course assign a new _"value"_ to an existing _string variable_ though.
+
+    ```go
+    a := "The quick " 
+    b := "brown fox"
+    
+    b = a + b        // cat 'a' & 'b' -> 'b'
+    fmt.Println(b)   // The quick brown fox
+    ```
+
   - **Substring**
 
+    We can access part of a _string_ using `0` based index for the positions surrounded by square brackets (**`[`_`start-index`_`:`_`end-index`_`]`**). After we learn **arrays** and **slices**, we will understand the mechanism better, but for now it is helpful to just know the syntax to achieve this. Like many other languages `Go` allows us to ignore the left or/and right boundaries if we are starting the beginning or going to the end respectively.
+
+    ```go
+    a := "ABCDEFGHIJKLMNOPQRSTUVWXYZ" 
+     
+    fmt.Println(len(a))    // 26
+    fmt.Println(a[0:3])    // ABC
+    fmt.Println(a[:3])     // ABC
+    fmt.Println(a[1:3])    // BC
+    fmt.Println(a[3:15])   // DEFGHIJKLMNO
+    fmt.Println(a[24:26])  // YZ
+    fmt.Println(a[24:])    // YZ
+    ```
+
+    Again this way of directly accessing a _substring_ using direct **slice** of **bytes** will fail if we have **"multi-byte"** _Unicode_ characters. We shall see how to handle them safely with **"runes"** later.
+
+    ```go
+    a := "£∑"              // Non ASCII cahacters
+    
+    fmt.Println(len(a))    // 5
+    fmt.Println(a[0:1])    // �
+    fmt.Println(a[3:])     // �
+    ```
+
   - **Formatting**
+
+    To format _strings_ in `Go` we use the `Printf` (and `Sprintf`) functions, from the `fmt` package. These functions take a _"template string"_ as the first parameter and the value to be formatted (to _string_) as the second parameter. The _"template string"_ will contain _"format specifier verbs"_ (like `%d`, `%f` etc.). 
+
+    `Printf` prints to _standard I/O_ and `Sprintf` returns a formatted `string` value. This is very much like language such as `C/C++` and `Rust`. Note that the formatted print functions do not automatically append a _new line_, if we need can add a `\n` special character in the _"template string"_. The best way to understand this syntax and format specifiers is to see a few examples:
+
+    ```go
+    // format text 'integers' : verb %d, %b, %o, %x
+    i := 13
+    fmt.Printf("%d\n", i)       // 13
+    fmt.Printf("%+d\n", i)      // +13 (with sign)
+    fmt.Printf("[%+4d]\n", i)   // [  13] (left pad space)
+    fmt.Printf("[%-4d]\n", i)   // [13  ] (trailing pad space)
+    fmt.Printf("[%04d]\n", i)   // [0013] (pad '0')
+    fmt.Printf("%b\n", i)       // 1101 (binary)
+    fmt.Printf("%o\n", i)       // 15 (octal)
+    fmt.Printf("%x\n", i)       // d (hex)
+    fmt.Printf("%X\n", i)       // D (Hex)
+    fmt.Printf("%#x\n", i)      // 0xd (Hex)
+    
+    // format text 'float' : verb %f, %e
+    f := 13.00530
+    fmt.Printf("%f\n", f)       // 13.005300
+    fmt.Printf("%.2f\n", f)     // 13.01 (precision 2, rounding)
+    fmt.Printf("[%8.2f]\n", f)  // [   13.01] (widthd 8, precision 2)
+    fmt.Printf("%e\n", f)       // 1.30053e+01 (scientific notation)
+    fmt.Printf("%g\n", f)       // 13.0053 (as needed, necessary digits ony)
+    
+    // format text 'char' : verb %c, %q, %U
+    c := 'A'
+    fmt.Printf("%c\n", c)       // A
+    fmt.Printf("%q\n", c)       // 'A'
+    fmt.Printf("%U\n", c)       // U+0041 (unicode)
+    fmt.Printf("%#U\n", c)      // U+0041 'A'
+    
+    // format text 'bool' : verb %t
+    fmt.Printf("%t\n", 1 == 3)  // false
+    
+    // format text 'string' (or byte slice) : verb %s
+    s := "café"
+    fmt.Printf("%s\n", s)       // café
+    fmt.Printf("[%6s]\n", s)    // [  café] (pad leading space)
+    fmt.Printf("[%-6s]\n", s)   // [café  ] (pad trailing space)
+    fmt.Printf("%q\n", s)       // "café"
+    fmt.Printf("%x\n", s)       // 636166c3a9 (hex dump of bytes)
+    fmt.Printf("% x\n", s)      // 63 61 66 c3 a9 (space separated hex dump of bytes)
+    
+    // format text 'pointers' : verb %p
+    ps := &s
+    fmt.Printf("%p\n", ps)       // 0xc000010200 (pointer in hex)
+    
+    // special verbs: verb %v,%T
+    fmt.Printf("%v\n", ps)      // 0xc000010200 (default format)
+    fmt.Printf("%#v\n", ps)     // (*string)0xc000010200 (Go-syntax format)
+    fmt.Printf("%T\n", ps)      // *string (type of variable)
+    ```
+
+    We can use `Sprintf` in the same way to format `string` values without printing. This serves the purpose of _"string interpolation"_ in many other languages.
+
+    ```go
+    r := fmt.Sprintf("sum of %d and %f is %g", i, f, float64(i) + f)
+    fmt.Println(r)              // sum of 13 and 13.005300 is 26.0053
+    ```
+
+  - **Comparison**
+
+    _Strings_ can be compared using the standard comparison operators `==`, `>`, `<`, `!=`, `<=`, `>=`. It will do a _byte_ by _byte_ comparison of the two _strings_ in lexicographical order (the order in which words appear in a _dictionary_).
+
+    ```go
+    a, b, c, d := "ABC", "ACC", "acc", "ABCc"
+    
+    fmt.Println(a > b)       // false
+    fmt.Println(b >= c)      // false
+    fmt.Println(b == c)      // false
+    fmt.Println(a <= d)      // true
+    ```
+
+  - **Conversion**
+
+    The _standard library_ comes with the **`strconv`** package, that provides conversion functions to convert to and from _string_ to almost all other data types. the common functions are:
+
+     - `Atoi` (_string_ -> _integer_), `ParseBool`, `ParseFloat`, `ParseInt`, `ParseUnit`; they convert from `string` to the corresponding types values. These conversions can of course fail if the `string` does not represent a valid value in the target type, therefore these functions typically return two value - one is an _error_ (which will be empty if conversion is successful, OR specif the conversion error if not), the other is that actual value (assuming the conversion succeeded, otherwise this value is to be ignored). This is a typical pattern for providing return values from functions that could potentially fail.
+
+       ```go
+       sx, si, sf, sb := "34F", "23", "13.33", "true"
+       
+       // try convert 'sx' to int
+       x, err := strconv.Atoi(sx)
+       // test if conversion is successful
+       if err != nil {
+           fmt.Println(sx, "is not an integer")   // 34F is not an integer
+       } else{
+           fmt.Println("sx = ", x)
+       }
+       
+       // we know 'si' is int so we can ignore 'err'
+       i, _ := strconv.Atoi(si)
+       fmt.Println(i + 1)                       // 24
+       
+       // try pasre 'sf' to float 64
+       f, _ := strconv.ParseFloat(sf, 64)
+       fmt.Println(f + 1.0)                     // 14.33
+       
+       // try parse 'sb' to bool
+       fmt.Println(strconv.ParseBool(sb))       // true <nil>
+       ```
+
+     -  `Itoa` (_integer_ -> _string_), `FormatBool`, `FormatFloat`, `FormatInt`, `FormatUnit`; they convert from the specified type to `string`. Since `string` can represent anything these functions do not need to explicitly handle failure of conversion.
+
+       ```go
+       i, f, b := 23, 13.33, true
+       
+       fmt.Println("i = " + strconv.Itoa(i))   					// i = 23
+       fmt.Println("f = " + strconv.FormatFloat(f, 'f', 5, 64)) 	// f = 13.330000
+       fmt.Println("b = " + strconv.FormatBool(b))   				// b = true
+       ```
 
 - **Boolean**
 
@@ -630,6 +781,127 @@ All variables in `Go` are initialised to their corresponding _zero values_.
 ### Control Flow
 
 #### Conditionals
+
+- **`if/else`**
+
+  The syntax for `if/else` conditional check in `Go` is very similar to other `C` style languages:
+
+  ```go
+  if condition1 {
+      // do something
+  } else if condition2 {
+      // do something else
+  } else if condition3 {
+      // do yet another thing
+  } else {
+      // otherwise do this
+  }
+  ```
+
+  Notice that there is no need for parentheses `()` for the _"conditions"_. `Go` is also very struct about the format of the brackets `{}` for the blocks.
+
+  Let us write some example code that reads a value from standard I/O and checks if it for range boundaries.
+
+  ```go
+  package main
+  
+  import (
+    "fmt"
+    "strconv"
+    "os"
+  )
+  
+  func main() {
+    // prompt message to enter a number
+    fmt.Println("Type in a number between 1 and 100.")
+  
+    // read string from stdio
+    var inp string
+    fmt.Scanln(&inp)
+  
+    // try convert to int
+    val, err := strconv.Atoi(inp)
+  
+    // check if input text is integer else exit
+    if err != nil {
+      fmt.Printf("'%s' is not an integer!\n", inp)
+      os.Exit(1)
+    }
+    
+    // if reached here input text is int
+    // do range checks and set result message string
+    var msg string
+    if val < 0 {
+      msg = "is too small!"
+    } else if val <= 40 {
+      msg = "can be higher."
+    } else if val <= 60 {
+      msg = "just about right."
+    } else if val <= 80 {
+      msg = "can be smaller."
+    } else {
+      msg = "is too high!"
+    }
+    // print result message to stdio
+    fmt.Printf("'%d' %s\n", val, msg)
+  }
+  ```
+
+- **`switch-case`**
+
+  When we need to check if the value of something is one of many different cases we can do that more simply using the `switch-case` construct, rather than repeated long winded `if/else` statements.
+
+  Here we are checking if an expression is any of the values specified in the `case` statements.
+
+  ```go
+  func main() {
+  	// prompt message to select one option
+  	fmt.Println("Select one option: 'A', 'B', 'C' or 'D'.")
+  
+  	// read string from stdio
+  	var inp string
+  	fmt.Scanln(&inp)
+  
+  	// check which option was input
+  	var msg string
+      // switch-case to check for options
+  	switch inp {
+  	case "A":
+  		msg = "USA"
+  	case "B":
+  		msg = "UK"
+  	case "C":
+  		msg = "France"
+  	case "D":
+  		msg = "Netherlands"
+  	default:
+  		msg = "<nowhere>"
+  	}
+  	// print result message to stdio
+  	fmt.Printf("Welcome to '%s'.\n", msg)
+  }
+  ```
+
+  Instead of checking against explicit values, if we needed to check against multiple logical conditions, that is possible too. We simply ignore the initial _"expression"_ to the `switch` and just specify the _"conditions"_ in the `case` statements. We could rewrite the previous `if/else` example using `switch` with conditional cases:
+
+  ```go
+  var msg string
+  // switch with conditional cases
+  switch {
+      case val < 0:
+      	msg = "is too small!"
+      case val <= 40:
+      	msg = "can be higher."
+      case val <= 60:
+      	msg = "just about right."
+      case val <= 80:
+      	msg = "can be smaller."
+      default:
+      	msg = "is too high!"
+  }
+  ```
+
+  `Go` diverges from most other `C` style languages when in comes to `switch-case` in that the evaluation does not automatically _"fall through"_ to the next case. In `C/C++`, `C#`, `Java` etc. we specify a `break` command to stop _falling through_ to next case. In `Go` if want this behaviour we will need to explicitly specify that with the `fallthrough` keyword. This can cause hard to reason bugs and is best avoided. If we seem to have to use `fallthrough` there is mostly a better way to solve the problem.
 
 #### Loops
 
