@@ -473,6 +473,36 @@ $ go fmt				# format all source code in the current directory
 
 - Like most other languages, in `Go` we have to define a variable before it can be used.
 
+### Constants
+
+We use the `const` keyword to declare constants in `Go`. Constants are determined at compile-time, and they cannot be modified at run-time. This allows the compiler to catch certain bugs earlier on.
+
+In `Go` we have to explicitly initialise the value of a constant, we cannot leave it to be set to its _zero value_. 
+
+Declaring a _constant_ is very much similar to how we declare _variables_ in syntax. We can specify the type or leave it to be inferred by `Go`.
+
+```go
+const n, d = 22, 7
+const pi = n * 1.0 / d
+fmt.Printf("%d, %d, %f\n", n, d, pi);			// 22, 7, 3.142857
+```
+
+If we wanted to declare all the three constants together we could try putting it all in one line `const n, d, pi = 22, 7, n * 1.0 / d`, but this would not compile as the constants `n` and `d` cannot be determined on the right-hand-side one the same line of declaration. However this can be achieved using the **block declaration** syntax, by simply enclosing the constants within parentheses `()` and separating each with a new line.
+
+```go
+// block-declaration of constants
+const (
+    n = 22
+    d = 7
+    pi = n * 1.0 / d
+)
+fmt.Printf("%d, %d, %f\n", n, d, pi);
+```
+
+### Scope
+
+
+
 ### Types
 
 `Go` is a _statically typed_ language, which means the type of a variable has to be determined before compile and cannot change thereafter. Many of the mainstream languages like `C\C++`, `Java`, `C#` are all statically typed. Some other popular languages such as `JavaScript`, `Python`, `Ruby` are _dynamically typed_ and the type (memory structure) of the data referenced by variables is determined and bound at runtime.
@@ -647,7 +677,7 @@ The _"basic data types"_ in `Go` are **integers** (`int`), **floating point numb
     fmt.Printf("[%+4d]\n", i)   // [  13] (left pad space)
     fmt.Printf("[%-4d]\n", i)   // [13  ] (trailing pad space)
     fmt.Printf("[%04d]\n", i)   // [0013] (pad '0')
-    fmt.Printf("%b\n", i)       // 1101 (binary)
+    fmt.Printf("%08b\n", i)     // 00001101 (binary)
     fmt.Printf("%o\n", i)       // 15 (octal)
     fmt.Printf("%x\n", i)       // d (hex)
     fmt.Printf("%X\n", i)       // D (Hex)
@@ -905,5 +935,292 @@ All variables in `Go` are initialised to their corresponding _zero values_.
 
 #### Loops
 
+In `Go` we use the **`for`** loop to repeat a block of operations a number of times. The general syntax is similar to other `C` style languages.
 
+```go
+for init; condition; post {			// Note that there are no '()' unlike 'C/C++'
+    // block to repeat
+}
+```
+
+- The **init** part, sets up the initial state before the loop begins. This part is _optional_.
+- The **condition** is checked before each iteration to determine if the loop should continue or exit. This part is _optional_ too in the syntax, but if we do not have an exit condition anywhere (at least in the code block), then it can result in an infinite loop.
+- The **post** part executes after each iteration. This is _optional_ as well.
+
+Unlike other languages, in `Go` we have only the **`for`** loop syntax. However with the optional parts we can set it up in different ways to achieve the effect of `while .. do` and `do .. while` constructs (usually found in other languages).
+
+The simplest for of the **`for`** loop is something like this:
+
+```go
+for i := 1; i <= 5; i++ {	// init i = 1, check if i <= 5, increment i after iteration
+    fmt.Printf("%d\t", i)
+}
+// 1	2	3	4	5
+```
+
+We can achieve a **`while`** loop simply by leaving out the optional parts and handling them in outside and/or inside the block.
+
+```go
+i := 1
+for i <= 5 {	// only condition check to continue
+    fmt.Printf("%d\t", i)
+    i++
+}
+```
+
+Similarly we can set it up for a **`do..while`** loop (the condition is checked at the end of the iteration).
+
+```go
+i := 1
+for {
+    fmt.Printf("%d\t", i)
+    i++
+    // explicitly check condition at end of loop and 'break' out.
+    if i > 5{
+        break
+    }
+}
+```
+
+### Collections - Arrays, Slices, Maps
+
+##### Arrays
+
+An **array** is the most basic _collection_ data structure in `Go` (and in most other languages). In `Go` an **array** is a _contiguous_ sequence of elements of the _same type_ and having _fixed length_. We can specify and **array** type by stating the length (number of elements it can hold) and the type of the element.
+
+```go
+var nums [4]int // array of length 4 to hold integers
+```
+
+This will allocate the required space in memory and give us an **array** variable to work with it.
+
+We access **array** elements using the `[<0 based index>]`, like in most other languages.
+
+```go
+var a [3]string
+a[0] = "A"
+a[1] = "B"
+a[2] = "C"
+// print array, length and capacity
+fmt.Println(a, len(a), cap(a))	// [A B C] 3 3
+a[0] = "Z"
+fmt.Println(a)	// [Z B C]
+```
+
+We can initialise the **array** as a literal while declaring it by specifying the elements within `{}`. As a convenience, with **array literals** we can use `...` instead of specifying the length within the brackets. _The reason we can't leave it empty `[]` is because that syntax is used by **Slices** as we shall see later._
+
+```go
+a := [3]string {"A", "B", "C"}
+// OR
+a := [...]string {"A", "B", "C"}
+```
+
+**Arrays** in **Go** have _"value semantics"_, that is when they are assigned or passed as parameters to function, they get **copied** rather than getting passed as a _reference_. In other words an **array variable** in **Go** is a "value" (unlike in **C**, where the **array variable** is really a "pointer" to the first element).
+
+```go
+a := [3]string {"A", "B", "C"}
+b := a
+b[0] = "Z"
+fmt.Printf("array 'a' = %v\n", a) // array 'a' = [A B C]
+fmt.Printf("array 'b' = %v\n", b) // array 'b' = [Z B C]
+```
+
+Changing the value of `b` doe snot change the value of `a`, they are separate copies in memory. Whilst this may be useful in some situations, this is an expensive operation and not something you would want to do inadvertently. _As we will see soon this is one of the reasons why we normally use **slices** instead of **arrays** as they have "reference semantics"._
+
+We cam use  **`for`** to loop through an **array** (or any iterable collection for that matter), using the **`range`** keyword. It produces an _iterator_ which returns an _index_ and the _item_ in the **array**, which we can assign directly to two variables (if we do not need the _index_ we can ignore that using **`_`**).
+
+```go
+a := [...]string{
+    "sun",
+    "mon",
+    "tue",
+    "wed",
+    "thu",
+    "fri",
+    "sat",
+    }
+for i, d := range a {
+    fmt.Printf("Day %d is %s\n", i, d)
+}
+```
+
+_Note: how in when we break out the array initialisation to multiple lines (for readability) we have the give a "comma on the last line", this is intentional to make it easy to comment out or cut-paste sections without having to rearrange commas!_
+
+**Arrays** in _Go_ are **one dimensional**, but we can combine **arrays of arrays** to get **multi-dimensional** arrays. In the example below we use an **array of arrays** to get a 3 X 4 matrix.
+
+```go
+ mat := [3][4]int {
+    {11, 12, 13, 14},
+    {21, 22, 23, 24},
+    {31, 32, 33, 34},
+  }
+// print matrix
+for _, r := range mat{
+    for _, e := range r{
+        fmt.Printf("%d ", e)
+    }
+    fmt.Println()
+}
+/*
+11 12 13 14 
+21 22 23 24 
+31 32 33 34 
+*/
+```
+
+
+
+##### Slices
+
+The most common collection type used in _Go_ is the **slice**, which is a more flexible and dynamic type compared to **arrays**. A **slice** is really an abstraction over some underlying **array** (_backing array_). When we declare a **slice** variable it defines a descriptor with a internal _pointer_ to some starting location within its _backing array_, a _length_ (which is the number of elements referred in the slice) and a _capacity_ (the number of elements in the _backing array_ from the starting point of the  **slice** ).
+
+The syntax for declaring a **slice** is almost same as that for an **array**, except that we do not specify a _fixed length_ when declaring it.
+
+```go
+// declaring a slice literal
+a := []string{"aplha", "bravo", "charlie", "delta"}
+```
+
+This will create a **slice** and a _backing array_ to hold the values.
+
+If we want to declare a **slice** variable without initialising it with values, we can do that using the **`make`** function.
+
+```go
+c := make([]string, 4, 4)
+c[0] = "alpha"
+fmt.Println(c) // [alpha    ]
+```
+
+The `make` function takes 3 parameters - _"a type"_, _"length"_ of collection, and an _"optional capacity"_. This will create the _underlying array_ and assign that to the **slice** variable. If _capacity_ is omitted, it defaults to _length_.
+
+_Note: How the first parameter is "a type" and not "a value" - so the declaration of this function is using a "meta type" to denote that (it has the signature `func make([]T, len, cap) []T`). We shall see how to do this later, but now it is worth noting._
+
+Very often a **slice** is formed by _"slicing"_ an existing **slice** or **array**. It uses a "half-open-range" specifier syntax separated by semicolon. This means that the left index is _included_ and the right index is _excluded_ (_this is similar to **Python**_). For example the range `[2:5]` implies a range - _starting at_ index `2`, and going on till index `4` (i.e. the indexes `2`, `3`, `4`). We can note that the number of elements is the difference of the _right index_ - _left index_.
+
+```go
+a := []string{"alpha", "bravo", "charlie", "delta"}
+fmt.Println(len(a))   // 4
+fmt.Println(cap(a))   // 4
+fmt.Println(a)        // [alpha bravo charlie delta]
+
+b := a[1:3]
+// slice of 'a' from index '1' to '2'
+fmt.Println(len(b))   // 2
+fmt.Println(cap(b))   // 3
+fmt.Println(b)        // [bravo charlie]
+```
+
+Note:
+
+ - **slice** `b` has two elements starting at index `1` of the original **slice** `a`
+
+ - **`len`** of **slice** `b` is **`2`** - which is evident, it has two elements
+
+ - **`cap`** of **slice** `b` is **`3`** - which is not that evident, this is because the underlying **array** has a capacity of **`4`** and we are starting our **slice** `b` at index `1`, so the number of elements left till end of **array** capacity is **`4 -1 = 3`**.
+
+The _range indexes_ for a slice are optional, if the _start index_ is omitted it defaults to `0` (the beginning of the source), and if the _end index_ is omitted it defaults the _end of the source_.
+
+```go
+fmt.Println(a[:3])  // [alpha bravo charlie]
+fmt.Println(a[1:])  // [alpha bravo charlie]
+fmt.Println(a[:])   // [alpha bravo charlie delta]
+```
+
+**Slices** have _reference semantics_, i.e. assignment or passing them as parameters doe snot result in a _copy_, rather it gets a _reference_ to the original **slice** and so changes to the target will change the source.
+
+```go
+  a := []string{"alpha", "bravo", "charlie", "delta"}
+  fmt.Println(a)        // [alpha bravo charlie delta]
+
+  b := a[1:3]
+  // slice of 'a' from index '1' to '2'
+  fmt.Println(b)        // [bravo charlie]
+  b[0] = "Beta"         // modify 'b'
+
+  fmt.Printf("'b' = %v\n", b) //'b' = [Beta charlie]
+  fmt.Printf("'a' = %v\n", a) // 'a' = [alpha Beta charlie delta]
+```
+
+When we do need a _copy_ of a slice, we can do that using the **`copy`** function.
+
+```go
+a := []int{10, 20, 30}
+fmt.Println(a)    // [10 20 30]
+
+b := make([]int, 3, 3)
+copy(b, a)
+fmt.Println(b)    // [10 20 30]
+
+c := make([]int, 5, 7)
+copy(c, a)
+fmt.Println(c)    // [10 20 30 0 0]
+
+d := make([]int, 1, 3)
+copy(d, a)
+fmt.Println(d)    // [10]
+
+e := []int {-1, -2, -3, -4, -5}
+copy(e, a)
+fmt.Println(e)   // [10 20 30 -4 -5]
+```
+
+If we **`copy`** to a _destination slice_ bigger (in **`len`**) than the _source slice_, then the extra elements in the _destination_ will remain unchanged.
+
+If the _destination_ is smaller, then only as many elements as the _length_ of the _destination_ can fit will be copied over.
+
+**`copy`** function will overwrite the corresponding elements in the _destination slice_.
+
+**Iterating** over the items in a **slice** is the same as we do for **arrays**.
+
+```go
+for i, l := range e {
+    fmt.Printf("e[%d] = %d\n", i, l)
+  }
+```
+
+###### Resizing Slices
+
+The main advantage of **slices** is that they are a dynamic collection and can be resized easily. So let us make a **slice** with **`1`** length and **`3`** capacity. Then try to set values into it.
+
+```go
+ a := make([]int, 1, 3)
+ a[0] = 10
+ a[1] = 20 // panic: runtime error: index out of range [1] with length 1
+
+ fmt.Println(a[1]) // panic: runtime error: index out of range [1] with length 1
+```
+
+So we cannot _set_ a value to an index **`>=`** the **`len`** of the **slice**. Similarly we cannot __access__ an element at an index **`>=`** the **`len`**.
+
+To **add** values beyond the **length** of the **slice** we use the **`append`** function.
+
+```go
+a := make([]int, 1, 3)
+fmt.Printf("a = %v; len = %d; cap = %d\n",a, len(a), cap(a))
+// a = [0]; len = 1; cap = 3
+
+a = append(a, 10, 20)	// append 10 & 20 to this slice
+fmt.Printf("a = %v; len = %d; cap = %d\n", a, len(a), cap(a))
+// a = [0 10 20]; len = 3; cap = 3
+// Note: 
+//		- values get added after the 'last index'
+//		- length increases
+//		- capacity has remianed same
+
+// append more than capacity
+a = append(a, 30)
+fmt.Printf("a = %v; len = %d; cap = %d\n", a, len(a), cap(a))
+// a = [0 10 20 30]; len = 4; cap = 6
+// Note:
+//		- length increases
+//		- capacity has doubled
+```
+
+The **`append`** function adds elements after the last index (**`len - 1`**), and increases the **`len`** by the number of items added. If we add beyond the _capacity_ , it automatically allocates a new **array** with double the _capacity_ and copies the elements over. This is all handled behind the scene by the function, and we get a new **slice**.
+
+_Note: another interesting observation about the **`append`** function is that its second parameter takes a variable number of arguments. This capability is called **variadic** functions or arguments and is similar to other languages, for example **\*\*`kwargs`** in **`Python`** and **`...args: int[]`** in **`Typescript`**. We will see how to do this in **Go** later._
+
+##### Maps
+
+A **map** in **Go** is an _unordered_ collection of _key-value_ pairs. It is same as **dictionaries**, **associative arrays**, **hashes** in other languages such as **`Python`**, **`C/C++`** or **`Ruby`**.
 
