@@ -1222,5 +1222,148 @@ _Note: another interesting observation about the **`append`** function is that i
 
 ##### Maps
 
-A **map** in **Go** is an _unordered_ collection of _key-value_ pairs. It is same as **dictionaries**, **associative arrays**, **hashes** in other languages such as **`Python`**, **`C/C++`** or **`Ruby`**.
+A **map** in **Go** is an _unordered_ collection of _key-value_ pairs. It is a common data structure, and often called by many names such as **dictionaries**, **associative arrays**, **hashes**, **hash-tables** in other languages such as **`Python`**, **`C/C++`** or **`Ruby`**. It serves as an in-memory _look up_, that allows us to store **values** against **keys** and, then access them in _constant time_ ( **O(1)** _time complexity_ ).
+
+The **keys** can be any data-type that supports equality check, so _strings_, _integers_, _floating-point_ are all fine, but a _array_ cannot be a **key**.
+
+We have a couple of ways to declare and create **maps**:
+
+- Use the `make` function to create a type of `map` with _key_ as `string` and _value_ as `int`. The data-type of the _key_ is specified within `[]`.
+
+```go
+// a map of string keys and int values
+scores := make(map[string]int)
+// set values in the map
+scores["Alice"] = 78
+scores["Betty"] = 82
+scores["Cindy"] = 89
+```
+
+- Use the _shorthand_ version (without `make`), mostly with **map** _literals_.
+
+```go
+// a map of string keys and int values with initialization
+scores := map[string]int {
+    "Alice": 78, 
+    "Betty": 82,
+    "Cindy":89,
+}
+```
+
+- Of course we can use the _shorthand_ version even of we do not have values to initialise, and later set the key-values.
+
+```go
+// a map of string keys and int values initialized empty
+scores := map[string]int{}
+
+// set values later
+scores["Alice"] = 78
+```
+
+
+
+To access a _value_ from a **map** we use the _key_ between `[]` (just like most other programming languages).
+
+```go
+p := "Alice"
+fmt.Printf("%s has a score of %d\n", p, scores[p] )
+// Alice has a score of 78
+```
+
+If no _value_ exists for the _key_ we are attempting to lookup (i.e. _hash miss_), then **Go** will return the **default value** (also called **zero value**) for the _value data-type_.
+
+```go
+p := "Jane"
+fmt.Printf("%s has a score of %d\n", p, scores[p] ) 
+// Jane has a score of 0
+```
+
+This is not always desirable, as we may need to know if the _key_ exists or not, and if it does then get the _value_ (sometimes the **zero value** might be a legitimate value so we cannot use that logic to check).  **Go** syntax allows us to return multiple values from a function, so the **map** _value_ reference operation actually returns _two_ items, the _first_ is the _value_ at that _key_ (or the **zero value** if the _key_ does not exist), and the _second_ is a _Boolean_ indicating if the _key_ was found or not. So in a single operation we can _check_ for a _key_ and _get_ the _value_ if it exists.
+
+```go
+p := "Jane"
+s, ok := scores[p]		// returns -> value, boolean
+if ok {
+    fmt.Printf("%s has a score of %d\n", p, s )
+} else {
+    fmt.Printf("%s does not exist on record.", p)
+}
+// Jane does not exist on record.
+```
+
+_Note_: **Go** gives a shorthand for declaring and using variables directly in one step with the `if` statement. The scope of the variables will be within the `if - else` block.
+
+```go
+p := "Jane"
+if s, ok := scores[p]; ok {		// declare 's' & 'ok' and use them in one step with the 'if' statement
+      fmt.Printf("%s has a score of %d\n", p, s )
+} else {
+    fmt.Printf("%s does not exist on record.", p)
+}
+// Jane does not exist on record.
+```
+
+
+
+To _iterate_ over the items in a **map** we use the **`range`** keyword just like we did with **arrays** and **slices**.
+
+```go
+scores := map[string]int {
+    "Alice": 78, 
+    "Betty": 82,
+    "Diana": 88,
+    "Cindy":89,
+}
+
+for k, v := range scores{
+    fmt.Printf("%s scored %d marks.\n", k, v)
+}
+/*
+Cindy scored 89 marks.
+Alice scored 78 marks.
+Betty scored 82 marks.
+Diana scored 88 marks.
+*/
+```
+
+However, since **maps** are _unordered_, the iteration will not necessarily return a sorted order. To do that we could get the _keys_ into a _sorted_ **slice** and then iterate over the **slice** to access the **map** values.
+
+```go
+import (
+  "fmt"
+  "sort"
+)
+
+func main() {
+    scores := map[string]int {
+        "Alice": 78, 
+        "Betty": 82,
+        "Diana": 88,
+        "Cindy":89,
+    }
+
+    var sortedNames []string
+    for name, _ := range scores{
+        sortedNames = append(sortedNames, name)
+    }
+    sort.Strings(sortedNames)
+    // now we have a slice of sorted names
+
+    for _, name := range sortedNames{
+        // iterate through the sorted slice and use as key
+        // access value from map using the sortd keys
+        fmt.Printf("%s scored %d marks.\n", name, scores[name])
+    }
+}
+/*
+Alice scored 78 marks.
+Betty scored 82 marks.
+Cindy scored 89 marks.
+Diana scored 88 marks.
+*/
+```
+
+_Note: Here we import and use the **`sort`** library to help sort the **string slice**._
+
+
 
