@@ -1701,4 +1701,73 @@ func main() {
 
 Note that the **function field** is just a plain function, and not a **method** (it does not have any _implicit reference_ to the **struct instance** itself). We are passing in the arguments that we need.
 
-Also we have the flexibility to define whatever function body we need when we declare and initialise the **struct instance**. We can change the value of the field to a different function (with the same signature if we need).
+Also we have the flexibility to define whatever function body we need when we declare and initialise the **struct instance**. We can change the value of the field to a different function (with the same signature) if we need.
+
+If we want to reuse the same logic, we can declare a function and assign it to each **instance** of the **struct**.
+
+```go
+// define struct type 
+type rect struct {
+  width int
+  height int
+  // define function type in-place
+  area func(rect) int
+}
+// define common function
+func product(arect rect) int{
+  return arect.width * arect.height
+}
+
+func main() {
+
+  r1 := rect{
+    23,
+    13,
+    // specify the 'product' function as the value
+    product,
+  }
+
+  r2 := rect{
+    56,
+    43,
+    // specify the 'product' function as the value
+    product,
+  }
+  // invoke function field of sruct
+  fmt.Printf("Area of rect = %d.\n", r1.area(r1))
+
+  fmt.Printf("Area of rect = %d.\n", r2.area(r2))
+  // Area of rect = 299.
+}
+```
+
+There are shortcuts to define the **function type** directly with the **struct definition**, if we do not want to explicitly define a separate **function type**.
+
+```go
+// define struct type 
+type rect struct {
+    width int
+    height int
+    // define function type in-place
+    area func(rect) int
+}
+```
+
+Or we can define the entire **struct** definition to be **anonymous**.
+
+```go
+r1 := struct {width int; height int;
+              // define a func type field on-the-fly
+              area func(rect) int
+             }{
+    23,
+    13,
+    // declare the function impelementation
+    func(arect rect) int{
+        return arect.width * arect.height
+    },
+}
+```
+
+We will see how to do these **method semantics** better with **interfaces** later on.
+
