@@ -1365,5 +1365,340 @@ Diana scored 88 marks.
 
 _Note: Here we import and use the **`sort`** library to help sort the **string slice**._
 
+### User-Defined Data Types
+
+Almost always, when programming and trying to represent entities in code we have to go beyond the _basic data types_, and their _collections_. To do this we can define our own data type, which are _composites_ of the _basic data types_.
+
+In _object oriented programming_, the ability to represent _entities_ as _objects_ which have their _state_ maintained in _fields_ with _methods_ that can operate on this _state_ is ubiquitous.
+
+_Go_ provides constructs such as **types**, **interfaces**, and **methods** to define our own data types and encapsulate actions that can be performed on them. It is however different from the classical _class based inheritance_ model we are normally familiar with from _C++_ and _Java_. 
+
+##### Detour to Pointers
+
+To pass around _variables_ to _user defined types_ we often have to use **pointers**. A **pointer** in _Go_ is just like what we have in _C/C++_, it is a _variable_ that holds the _address_ (memory location) of _another variable_. It is an indirect way to refer to another variable and we can easily change what the _pointer_ is pointing to by changing its _value_ to a _new location_ in memory. The advantages will become apparent as we go further.
+
+We will see how to _define_, _assign_, and _reference_ **pointer** variables with and example.
+
+```go
+// defining a pointer 
+var p *int
+// 'p' is pointer to integer type
+
+var i int = 13
+
+// point 'p' to 'i'
+p = &i
+// 'p' holds address of 'i'
+
+// access the value pointed to by 'p' with 'de-referencing'
+fmt.Printf("Value pointed by 'p' = %d\n", *p)
+// Value pointed by 'p' = 13
+
+// change 'i'
+i = 17
+
+fmt.Printf("New value pointed by 'p' = %d\n", *p)
+// New value pointed by 'p' = 17
+
+// content of pointer varible 'p'
+fmt.Printf("Content of pointer 'p' = %v\n", p)
+// Content of pointer 'p' = 0xc0000b6010
+
+```
+
+###### Pointer Arithmetic
+
+Unlike _C/C++_, we do not have _pointer arithmetic_ in _Go_. This makes it a much more memory safe language, as well as enables better _garbage collection_ implementation. That being said, _Go_ gives an "escape hatch" to use _unsafe_ mode and manipulate **pointers** at our own risk. To do this we have to import the "_unsafe_" module, and use the functions it provides.
+
+```go
+package main
+
+import "fmt"
+// import 'unsafe' operations library
+import "unsafe"
+
+func main() {
+
+    nums := [...]int{10, 20, 30}
+
+    // obtain an 'unsafe pointer' to 1st element
+    pnum := unsafe.Pointer(&nums[0])
+
+    // get size of the element data type
+    nsize := unsafe.Sizeof(nums[0]) // or int(0)
+
+    for i := 0; i < len(nums); i++ {
+        // cast 'unsafe pointer' -> 'int pointer' & dereference
+        item := *(*int)(pnum)
+
+        // print ponter and value
+        fmt.Printf("Value @ %v -> %d\n", pnum, item)
+
+        // increment pointer by size and cast back as 'unsafe'
+        pnum = unsafe.Pointer(uintptr(pnum) + nsize)
+    }
+    
+}
+/*
+Value @ 0xc000012160 -> 10
+Value @ 0xc000012168 -> 20
+Value @ 0xc000012170 -> 30
+*/
+```
+
+We can now modify the **pointer** by casting it as "_unsafe pointers_". Evidently this is quite difficult, and error prone. Therefore this is not idiomatic _Go_, and only to be used in extreme situations where we need this level of **pointer** manipulation and we know what we are getting into.
 
 
+
+With that refresher to **pointers** covered, we can get back to our discussion on _user defined data types_.
+
+##### Structs
+
+In _Go_ we use **structs** to define composite data types. We can group together a bunch a data elements and give that entity a name, this is akin to the concept of an _object_ in other languages (particularly like _JavaScript_).
+
+###### Defining Structs
+
+To define a **struct** we use the **`type`** keyword followed by and **identifier** for the **struct name**, then the **`struct`** keyword and the **fields** (or data elements) within curly braces **`{}`**.
+
+```go
+// define struct 'rect' with fields 'height' & 'width' of type int
+type rect struct{
+  height int
+  widht int
+}
+```
+
+###### Initialising Structs
+
+To initialise a **struct** object specify the values for the fields within **`{}`**, after the **struct** name. We can do this in two ways - **named initialisation** where we specify the _field name_ followed by **`:`** and the _value_, or **ordered initialisation**, if we know the order of the fields where we simply specify the field _values_ in the correct order.
+
+```go
+// named initialisation
+r1 := rect{width: 23, height: 19}
+
+// ordered initialisation
+r2 := rect{19, 23}
+```
+
+###### Accessing Fields
+
+We can use the dot **`.`** notation to access the fields of a **struct**.
+
+```go
+r1 := rect{width: 23, height: 19}
+fmt.Printf("rect has width = %d & height = %d\n", r1.width, r1.height)
+```
+
+We can initialise an _Empty_ **struct** and then set the values if we wish to, the omitted fields will have the default _zero_ values depending on its data type.
+
+```go
+// empty initialisation
+r1 := rect{}
+
+fmt.Printf("rect has width = %d & height = %d\n", r1.width, r1.height)
+// rect has width = 0 & height = 0
+
+// set field values
+r1.height, r1.width = 19, 23
+
+fmt.Printf("rect has width = %d & height = %d\n", r1.width, r1.height)
+// rect has width = 23 & height = 19
+```
+
+###### Anonymous Structs
+
+If we want a temporary object for a local scope, it is possible to define an **anonymous struct**, that does not have a type name. We can define and initialise it in one step and use it the local scope.
+
+```go
+ // anonymous struct expression
+s1 := struct {
+    name string
+    score int
+}{
+    "Alan",
+    78,
+}
+
+// can declare in a single line if needed
+s2 := struct {name string; score int}{
+    "Betty", 89,
+}
+
+if s1.score > s2.score {
+    fmt.Printf("%s scored more than %s.\n", s1.name, s2.name)
+} else if s1.score < s2.score {
+    fmt.Printf("%s scored more than %s.\n", s2.name, s1.name)
+} else{
+    fmt.Printf("%s and %s scored the same.\n", s1.name, s2.name)
+}
+
+// Betty scored more than Alan
+```
+
+**Anonymous structs** have _type compatibility_ with other **structs** as long as they have the same structure. This is because _Go_ has a **structural typing** approach in most situations, we shall see this more when we see **interfaces**.
+
+```go
+type rect struct{
+    height int
+    width int
+}
+
+type block struct{
+    height int
+    width int
+}
+
+func main() {
+
+    // anonymous struct expression
+    o := struct {
+        height int
+        width int
+    }{
+        10,
+        15,
+    }
+
+    r := rect{10,15}
+    b := block{10, 15}
+
+    var comp string
+
+    // compare 'rect' and anonymous struct
+    if r == o {
+        comp = "Same"
+    } else
+    {
+        comp = "Different"
+    }
+    fmt.Printf("'r' and 'o' are %s.\n", comp)
+
+    // compare 'block' & anonymous struct
+    if b == o {
+        comp = "Same"
+    } else
+    {
+        comp = "Different"
+    }
+    fmt.Printf("'b' and 'o' are %s.\n", comp)
+
+    /*
+  Compile error - cannot cmpare struct rect with block
+  if r == b {
+    ...
+  } else
+  */
+}
+// 'r' and 'o' are Same.
+// 'b' and 'o' are Same.
+```
+
+###### Nested Structs
+
+Of course we can have **structs** nested within other **structs**.
+
+```go
+type Address struct{
+    city string
+    country string
+}
+
+type Person struct{
+    name string
+    age int
+    // nested struct field
+    address Address
+}
+
+func main() {
+
+    p1 := Person{
+        "Alan",
+        27,
+        // initialise nested struct values
+        Address{
+            "Madrid",
+            "Spain",
+        },
+    }
+
+    fmt.Printf("%s, aged %d lives in %s - %s.\n", 
+               p1.name, p1.age, p1.address.city, p1.address.country)
+    // Alan, aged 27 lives in Madrid - Spain.
+}
+```
+
+###### Promoted Struct Fields
+
+In the case of **nested structs**, we can define them so that their _fields_ get promoted to be accessed without having to qualify them with the internal _struct field names_. We do this by simply omitting the _field name_ for the **nested struct** field.
+
+```go
+type Address struct{
+    city string
+    country string
+}
+
+type Person struct{
+    name string
+    age int
+    // nested promoted struct (anonymous) field
+    Address
+}
+
+func main() {
+
+    p1 := Person{
+        "Alan",
+        27,
+        Address{
+            "Madrid",
+            "Spain",
+        },
+    }
+
+    fmt.Printf("%s, aged %d lives in %s - %s.\n", 
+               // access 'city' & 'country' fields dierctly
+               p1.name, p1.age, p1.city, p1.country)
+    // Alan, aged 27 lives in Madrid - Spain.
+}
+```
+
+Of course we have to be careful to avoid **anonymous nesting** of two **structs** that might have any fields with the same name! The compiler will error that as an _ambiguous field_.
+
+###### Function Fields
+
+The fields of a **struct** is not restricted to being just data, they can be **functions** as well. The _type_ of the _field_ can be a **function type**.
+
+```go
+// define a 'type' for our function
+type product func(arect rect) int 
+
+// define struct type 
+type rect struct {
+    width int
+    height int
+    // field 'area' is a function type
+    area product
+}
+
+func main() {
+
+    // declare and initialise a rect struct
+    r1 := rect{
+        width: 23,
+        height: 13,
+        // define a function for this field
+        area: func(arect rect) int{
+            return arect.width * arect.height
+        },
+    }
+
+    // invoke function field of sruct
+    fmt.Printf("Area of rect = %d.\n", r1.area(r1))
+    // Area of rect = 299.
+}
+```
+
+Note that the **function field** is just a plain function, and not a **method** (it does not have any _implicit reference_ to the **struct instance** itself). We are passing in the arguments that we need.
+
+Also we have the flexibility to define whatever function body we need when we declare and initialise the **struct instance**. We can change the value of the field to a different function (with the same signature if we need).
