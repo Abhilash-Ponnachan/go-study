@@ -1769,5 +1769,558 @@ r1 := struct {width int; height int;
 }
 ```
 
-We will see how to do these **method semantics** better with **interfaces** later on.
+###### Pointer to Struct
+
+Often we will want to deal with **pointers to struct**, we can do that simply by using the **`&`** to assign the address/reference to a **struct** to a **pointer variable**.
+
+```go
+r2 := &rect{
+    46,
+    26,
+    product,
+}
+
+// access the fields by 'dereferencing' strct pointer
+fmt.Printf("Width of rect = %d.\n", (*r2).width)
+
+// Shorthand - direct access with struct pointer
+fmt.Printf("Height of rect = %d.\n", r2.height)
+
+// func 'product' needs param of type 'rect'
+//   not 'pointer to rect' so need to 'dereference'
+fmt.Printf("Area of rect = %d.\n", r2.area(*r2))
+// Area of rect = 1196.
+```
+
+_Go_ allows us to directly access _fields_ of **struct pointer** variables without having to _dereference_ them.
+
+Another way to create **struct pointers** is using the **`new`** keyword.
+
+```go
+r3 := new(rect)
+r3.width, r3.height = 13, 23
+r3.area = product
+```
+
+This is often used when we do _not initialise_ the **struct** as a literal, rather dynamically set the values.
+
+###### Methods
+
+Previously we saw how to make use a **function field** within a **struct**, but that does not make it a **method**. In order to define **methods** on **structs**, we define a **function** and then "**bind**" that to a **struct**. We do that by specifying the **struct name** as the **_receiver_** of the **function call** within parentheses **`()`** directly after the **`func`** keyword (it is like the **`self`** parameter in other languages like _Python_). 
+
+```go
+// define struct type 
+type rect struct {
+  width int
+  height int
+}
+
+// method on struct 'rect'
+// rect is the receiver/self-param
+func (arect rect) area() int{
+  return arect.width * arect.height
+}
+
+func main() {
+
+  r1 := rect{
+    width: 13,
+    height: 23,
+  }
+ 
+  // invoke method on 'rect'
+  fmt.Printf("Area of rect = %d.\n", r1.area())
+}
+```
+
+let us say we want to modify the **struct**, we could try to mutate the _fields_ with a method.
+
+```go
+// define struct type 
+type rect struct {
+  width int
+  height int
+}
+
+// method on struct 'rect'
+// rect is the receiver/self-param
+func (arect rect) area() int{
+  return arect.width * arect.height
+}
+
+// method to increase the dimensions
+func (arect rect) grow(width, height int){
+  arect.width += width
+  arect.height += height
+}
+
+func main() {
+
+  r1 := rect{
+    width: 13,
+    height: 23,
+  }
+  // print current dimensions
+  fmt.Printf("Width = %d; Height = %d\n", r1.width, r1.height)
+  // Width = 13; Height = 23
+
+  // increase size of rect
+  r1.grow(10, 10)
+  // print dimensions again
+  fmt.Printf("Width = %d; Height = %d\n", r1.width, r1.height)
+  // Width = 13; Height = 23	!!!
+}
+```
+
+Looks like that did **not** work! The dimensions of the **`rect`** remained the same.
+
+This is because **structs** in _Go_ have "**value semantics**" (like everything else in _Go_ in fact). When a **struct** is passed as an argument, the parameter receives a **copy** of the **struct**, and whatever changes we do to that **copy** within the function body is lost once we are out of the function scope.
+
+When we wan to modify a **struct** in a method we should pass it as a **pointer**.
+
+```go
+// method to increase the dimensions
+// bind to 'rect pointer'
+func (arect *rect) grow(width, height int){
+  arect.width += width
+  arect.height += height
+}
+
+func main() {
+
+  r1 := rect{
+    width: 13,
+    height: 23,
+  }
+  // print current dimensions
+  fmt.Printf("Width = %d; Height = %d\n", r1.width, r1.height)
+  // Width = 13; Height = 23
+
+  // increase size of rect
+  // actually gets called on a reference to rect
+  r1.grow(10, 10)
+  // print dimensions again
+  fmt.Printf("Width = %d; Height = %d\n", r1.width, r1.height)
+  // Width = 23; Height = 33
+}
+```
+
+The only change we needed to do was in the **method definition** to change the **_receiver_** from **`rect`** to **`*rect`**.
+
+Besides the need to modify the fields, it is generally a good practice to define the **method**, on the **pointer** to the **struct** as it is more efficient at runtime, since the whole **struct** does not need to be copied over, just the **pointer**.
+
+###### No Constructors
+
+For those of us coming from **class based OOP** languages, we should be aware that **structs** do **not** have the concept of a "**constructor**". If we want some initialisation to happen when a **struct** instance is created, we have to write our "**factory function**" within which we **create** the **struct**, **initialise** it with whatever we need and then **return** it (as a pointer).
+
+```go
+// function to create and return rect pointer
+func newRect(width, height int) *rect{
+  return &rect{ width, height }
+}
+
+func main() {
+  // call function to create, initialise
+  // and return rect pointer
+  r1 := newRect(13, 23)
+
+  fmt.Println(r1)
+  // &{13 23}
+  
+}
+```
+
+###### Comparing Structs
+
+_Go_ allows us to compare **structs** directly. Two **structs** are considered equal if all of their corresponding fields are equal.
+
+```go
+func main() {
+  // call function to create, initialise
+  // and return rect pointer
+  r1 := newRect(13, 23)
+  
+  r2 := rect{13, 23}
+
+  r3 := newRect(13, 23)
+
+  fmt.Println(*r1 == r2)
+  // true
+  
+  fmt.Println(*r1 == *r3)
+  // true
+
+  fmt.Println(r1 == r3)
+  // false !! - comparing pointers (not the referenced structs)
+
+  r4 := struct{width int; height int}{
+    13,
+    23,
+  }
+  fmt.Println(r2 == r4)
+  // true - structural typing
+
+  r5 := struct{height int; width int}{
+    13,
+    23,
+  }
+  fmt.Println(r2 == r5) // compiler error - type mismatch
+}
+```
+
+As long as the fields are in the same order (layout), and type and have the same values **structs** are considered equal. The **name** of the **struct** is not relevant in this comparison, as _Go_ takes the approach of _structural typing_ (as opposed to _nominal typing_).
+
+###### Exporting Structs
+
+_Go_ uses a simple **convention** for specifying **visibility**, if an identifier starts with a "**Capital**" letter then it is **visible** outside its **package**. So if a **struct** name starts with a "**Capital**" letter then it is considered "**Exported**" from the **package** and can be accessed from outside. Similarly if the **fields** of the **struct** start with "**Capital case**" then these **fields** get "**Exported**" as well, otherwise they are not **visible** from outside the **package**.
+
+```go
+package login
+
+// exported struct
+type User struct {
+	Id   int    // exported field
+	Name string // exported field
+	age  int    // private field
+}
+
+// local scoped struct
+type address struct {
+	city    string // cannot have exported fields
+	country string
+}
+
+// use in another package
+
+package main
+
+import (
+    "fmt"
+    // import our package
+    login "demo/login"
+)
+
+func main(){
+    // Can access exported struct and fields - only
+	u := login.User{Id: 1001, Name: "Alan"}
+
+	fmt.Println(u)
+}
+```
+
+This is a very simple pattern relying on the **naming convention** and does not require any **keywords**. We shall see more about **packages** and **modules** in a later section.
+
+### Functions
+
+###### Function Definition
+
+In _Go_ we define **functions** using the **`func`** keyword (line **`def`** in _Python_, or **`fun`** in _Kotlin_). This is followed by the _name_ of the **function** and a set of _parameters_ in **`()`**, followed by the _return_ type and finally the _body_ enclosed within **`{}`**.
+
+```go
+func add(a int, b int) int{
+  return a + b
+}
+
+// call the function
+s := add(13, 34)
+```
+
+###### Omit Parameter Type (repeating)
+
+If a _set of parameters_ have the same **type**, then we can just bunch them together (separated by **`,`**s) and specify the **type* _just once_. 
+
+```go
+func add(a, b int) int{
+    return a + b
+}
+```
+
+###### Multiple Return Values
+
+_Go_ allows us to return _multiple values_ at once from a function. To specify these we have to enclose the _return types_ in **`()`** separated by **`,`**s.
+
+```go
+func sumdiff(a, b int) (int, int){
+  return a + b, a - b
+}
+
+// call the function
+s, d := summdiff(13, 34)
+```
+
+###### Named Return Parameters
+
+We can specify a **name** for the **return parameters/variables** with the definition, then it becomes easier to assign values to them within the function and simply do a **`return`** to return those values. This is a shortcut.
+
+```go
+func sumdiff(a, b int) (s, d int){
+    s, d = a + b, a - b	
+    // Note we use '=' instead of ':='
+    // We don't want to redeclare the varibles!!
+  return
+}
+```
+
+###### Recursive Functions
+
+_Go_ allows us to invoke functions recursively (from within itself).
+
+```go
+// recursive factorial
+func fact(n int) int {
+    if n <= 0 {
+        return 1
+    } else {
+        return n * fact(n - 1)
+    }
+}
+
+// invoke factorial
+fmt.Println(fact(20)) // 2432902008176640000
+```
+
+###### Variadic Functions
+
+There are some situations where we cannot know beforehand the number of arguments we need to pass in. It may vary depending on the situation. A common example in most languages is the **`Printxx`** function, that takes any number of arguments and prints them separated (or formatted). Such function are called **variadic functions**. In _Go_ we can define a **variadic function** by "**prefixing `...`**" before the **parameter's type**. This is similar to **`*args`** & **\*\*`kwargs`** in _Python_ and exactly same syntax as in _TypeScript_!
+
+```go
+// variadic function that can take 
+// indefinite number of int arguments
+func sum(nums ...int) int{
+  s := 0
+  for _, e := range nums{
+    // inside the function the variadic parameter
+    // is accessed as a slice
+    s += e
+  }
+  return s
+}
+
+// invoking variadic argument function
+fmt.Println(sum(10, 20, 30, 40, 50))	// 150
+```
+
+If we want to invoke this with an existing **slice** or **array** use the **`...`** with the **argument** to **spread** it out, same syntax as _TypeScript_ where it is called "**spread operator**".
+
+```go
+// call with existing slice
+nums := []int{10, 20, 30, 40, 50}
+// spread out the slice
+fmt.Println(sum(nums...))				// 150
+```
+
+The definition of **`Println`** in _Go_ is.
+
+```go
+func Println(a ...interface{})
+```
+
+This uses the concept of an "**empty interface type**" to be able to pass in any **type** of value. We will examine this later when we get to **interfaces**.
+
+We can also mix, **non-variadic** (fixed parameters) along with **variadic** parameters as long as the **variadic** parameter comes last. This is how the **`Printf`** function is defined (the first parameter is **`format`**).
+
+```go
+func Printf(format string, a ...interface{})
+```
+
+###### Defer a Function
+
+The **`defer`** statement **"defers"** the execution of the qualified function (call) till the enclosing function returns.
+
+```go
+func greet(){
+  defer fmt.Println("deferred Hello!")
+  fmt.Println("Hello from function.")
+}
+// Hello from function.
+// deferred Hello!
+```
+
+The deferred call gets executed after the **`greet`** function completes.
+
+The **deferred callas** are executed even if the enclosing function exits with a **panic**!!
+
+```go
+func greet(){
+  defer fmt.Println("deferred Hello!")
+  panic("error") // forced painic exit
+  fmt.Println("Hello from function.")
+}
+// deferred Hello!
+// panic: error
+```
+
+The **deferred call** completes then we see the **panic** error.
+
+**Deferred calls** are executed in a **Last-In-First-Out (LIFO/Stack)** fashion. Also the parameters to the calls are evaluated immediately but the invocations happen later. It is like the calls are pushed on to a stack and then popped and invoked after the enclosing function returns. 
+
+```go
+func countDown(from int){
+  for i := from; i > 0; i-- {
+    // count downwards and call Println
+    defer fmt.Println(i)
+  }
+  fmt.Println("Counting down from...")
+}
+
+// call function
+countDown(5)
+
+/*
+Counting down from...
+1
+2
+3
+4
+5
+*/
+```
+
+We can see that the resulting **deferred calls** happen in reverse order to how we stacked them.
+
+A **deferred call** has the ability to modify the **return value** of the outer function at the very last moment (even after the outer function **return** has executed). To do this the outer function should have a **named return parameter**, and we need to define an inner function body that can access and modify the **return parameter** of the outer function.
+
+```go
+func modifyReturn() (result string){
+  // anonymous function with defer
+  defer func(){
+    // access named return param
+    // of outer func & modify it
+    result = "modified result"
+  }() // invoked immediately
+  return "original result."
+}
+
+// invoke the func and print the return
+fmt.Println(modifyReturn())
+
+// modified result
+```
+
+**Deferred calls** is not something very common in other programming languages and might be hard pressed to see its usefulness. In _Go_ it is typically used to make **clean up calls** (especially given that it will execute even if the outer function panics).
+
+```go
+func copyfile(srcName, dstName string) (written int64, err error){
+    src, err := os.Open(srcName)
+    if err != nil {
+        return
+    }
+    // deferred call to close file 
+    defer src.Close()
+    
+    dst, err := os.Create(dstName)
+    if err != nil {
+        return
+    }
+    // deferred call to close file
+    defer dst.Close()
+    
+    return io.Copy(dst, src)
+}
+```
+
+###### Parameters by Value & by Reference
+
+In _Go_ all **function arguments** are really "**pass by value**", that is the function receives a copy of the variable/argument. Which implies that the changes we make to the argument within the function body will be lost once the function returns. If we want to modify the **original value**, we will have to pass in a **pointer** to the value(this means the function signature has to be such that it can accept **pointers**). The variables to some data types such as **slices** and **maps** are implicitly treated like "**pointers**" (they as **reference types**), so we do not explicitly have to make them pointers when when passing them to functions (as a complement to that scenario, if we do need to pass a **copy** of a **reference** data type we will have to use some **`copy`** function).
+
+```go
+func main(){
+  u1 := user{ name: "Alice", active: false }
+  fmt.Printf("Before toggleUser call, user.active = %t\n", u1.active)
+  toggleUser(u1)
+  fmt.Printf("After toggleUser call, user.active = %t\n", u1.active)
+}
+
+// func to change user status
+func toggleUser(auser user){
+  auser.active = !auser.active
+  fmt.Printf("...Inside func, user.active = %t\n", auser.active)
+}
+
+/* Output
+Before toggleUser call, user.active = false
+...Inside func, user.active = true
+After toggleUser call, user.active = false
+*/
+```
+
+As we can see the modifications we did inside the function **`toggleUser`** is lost once we returned from it.
+
+```go
+func main(){
+  u1 := user{ name: "Alice", active: false }
+  fmt.Printf("Before toggleUser call, user.active = %t\n", u1.active)
+  toggleUser(&u1)	//pass in address of the variable
+  fmt.Printf("After toggleUser call, user.active = %t\n", u1.active)
+}
+
+// func to change user status
+// accptes pointer to user
+func toggleUser(auser *user){
+  // modifying value pointed to by the pointer
+  auser.active = !auser.active	
+  fmt.Printf("...Inside func, user.active = %t\n", auser.active)
+}
+
+/* Output
+Before toggleUser call, user.active = false
+...Inside func, user.active = true
+After toggleUser call, user.active = true
+*/
+```
+
+Now the original value of the **`user`** **`struct`** variable is changed (instead of the **argument copy**).
+
+```go
+func main(){
+  vals := [5]int{1, 2, 3, 4, 5}
+  fmt.Printf("Before calling doubleValues: %v\n", vals)
+  doubleValues(vals)
+  fmt.Printf("After calling doubleValues: %v\n", vals)
+}
+
+// func to double values in an array
+func doubleValues(values [5]int){
+  for i := 0; i < len(values); i++{
+    values[i] = 2 * values[i]
+  }
+}
+
+/* Output
+Before calling doubleValues: [1 2 3 4 5]
+After calling doubleValues: [1 2 3 4 5]
+*/
+```
+
+**Arrays** as we see are **passed by value**. If we want to modify the **array** we can pass it in as a **pointer**, but in practice we would simply pass in a **slice** of the **array**. 
+
+```go
+func main(){
+  vals := [5]int{1, 2, 3, 4, 5}
+  fmt.Printf("Before calling doubleValues: %v\n", vals)
+  // invoke func with full slice to array
+  doubleValues(vals[:])
+  fmt.Printf("After calling doubleValues: %v\n", vals)
+}
+
+// func to double values in an array
+// accepts a slice parameter
+func doubleValues(values []int){
+  // this will modify the underlying array
+  for i := 0; i < len(values); i++{
+    values[i] = 2 * values[i]
+  }
+}
+
+/* Output
+Before calling doubleValues: [1 2 3 4 5]
+After calling doubleValues: [2 4 6 8 10]
+*/
+```
+
+The only slight change that we did was to modify the function to accept a **slice** instead of an **array** and correspondingly call the function using a **full slice to the array**. With this the function will treat it like a **reference**, actually it receives a **copy** of the "**slice variable**", which points to the same underlying **backing array**, which indirectly gets modified via the **slice**.
+
+This is the same behaviour we will see with **maps** as well.
+
+**Passing by reference** is not just for modifying the original values (which can in fact be a bad practice to proliferate, it is better to adopt a **functional style** where have **pure functions** to the extent possible). There is a **cost to copy** values every time we invoke a function with arguments. If the variable is big in size and we are making a **pass by value** call, it will copy the entire data to the parameter in the function, which can be an expensive operation. **Passing by reference/pointers** can be a better option in such situations.
 
