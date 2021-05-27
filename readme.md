@@ -2324,3 +2324,191 @@ This is the same behaviour we will see with **maps** as well.
 
 **Passing by reference** is not just for modifying the original values (which can in fact be a bad practice to proliferate, it is better to adopt a **functional style** where have **pure functions** to the extent possible). There is a **cost to copy** values every time we invoke a function with arguments. If the variable is big in size and we are making a **pass by value** call, it will copy the entire data to the parameter in the function, which can be an expensive operation. **Passing by reference/pointers** can be a better option in such situations.
 
+###### First-class Functions
+
+_Go_ supports **first-class-functions**, i.e. functions are just like any other **value/data**, they can be **assigned to variables**, **passed as arguments** to other functions, or **returned as values** from functions. In this respect it is similar to other languages (like _JavaScript_) that support some **functional programming concepts**, which enable us to write powerful and elegant code.
+
+**Assign function** to variable.
+
+```go
+func add(a int, b int) int{
+  return a + b
+}
+
+func prod(a, b int) int{
+  return a * b
+}
+
+/// ... assign these functions to some variable
+
+op := add
+fmt.Printf("'op (%d, %d) = %d'\n", 3, 5, op(3, 5))
+// 'op (3, 5) = 8'
+
+op = prod
+fmt.Printf("'op (%d, %d) = %d'\n", 3, 5, op(3, 5))
+// 'op (3, 5) = 15'
+```
+
+The `op` variable holds the "**function**", and we can invoke the function using it. We can also change the value of the variable to point to another function (_as long as the function signatures match_).
+
+###### Anonymous Function
+
+When we use a **first-class function**, we can define it on the fly (or in place) and ignore the name (if we do not need to access it by name). We could rewrite the above example as.
+
+```go
+// define an anonymous function
+op := func (a, b int) int {
+    return a + b
+}
+fmt.Printf("'op (%d, %d) = %d'\n", 3, 5, op(3, 5))
+// 'op (3, 5) = 8'
+
+// another anonymous function
+op = func (a, b int) int {
+    return a * b
+}
+fmt.Printf("'op (%d, %d) = %d'\n", 3, 5, op(3, 5))
+// 'op (3, 5) = 15'
+```
+
+###### Function Type
+
+Since **functions** are treated same as **values** in _Go_, every function has a "**type**" associated with it. We can see the type of our anonymous function like we do for regular **data** using the **`reflect`** module.
+
+```go
+op := func (a, b int) int {
+    return a + b
+}
+fmt.Printf("Type of func 'op' = %v\n", reflect.TypeOf(op))
+// Type of func 'op' = func(int, int) int
+
+op = func (a, b int) int {
+    return a * b
+}
+fmt.Printf("Type of func 'op' = %v\n", reflect.TypeOf(op))
+// Type of func 'op' = func(int, int) int
+}
+```
+
+Both functions have the same **type** viz. **`func(int, int) int`**.
+
+We can declare a **custom type**, which is a **function type**, and then use that as the **type** for **variables** and **parameters**.
+
+```go
+// custom type of fucntion type
+type intoperation func(int, int) int
+
+// declare variable of function type
+var op intoperation
+
+// assign named fucntion to variable
+op = add
+fmt.Printf("Type of func 'op' = %v\n", reflect.TypeOf(op))
+// Type of func 'op' = func(int, int) int
+
+
+// assign anonymous function to variable
+op = func (a, b int) int {
+    return a * b
+}
+fmt.Printf("Type of func 'op' = %v\n", reflect.TypeOf(op))
+// Type of func 'op' = func(int, int) int
+```
+
+###### Higher-Order Functions
+
+**Higher-order functions** are functions that can _accept other functions_ as parameters (typical use case as _predicates_ to filter functions) or return _functions_ as a result (typically function factories).
+
+The code snippet below shows an example of a function that accepts other functions and, in effect produces different results to the same input.
+
+```go
+// A generic function to calculate averages
+// takes two fucntions as parameters
+// 'comb' - func defining how to combine the values
+// 'norm' - func defining how to normalize the result
+func average(
+  comb func(int, int) int, 
+  norm func(int, int) float64, 
+  nums ...int) float64 {
+    // number of elements in args
+    l := len(nums)
+    r := 0.0
+    if l > 0{
+      c := nums[0]
+      for i := 1; i < l; i++{
+        // combine the elements as defined by 'comb'
+        c = comb(c, nums[i])
+      }
+        // normalize the combine value
+      r = norm(c, l)
+    }
+    return r
+}
+
+// ...
+// code that uses the 'average' function
+
+// calculate arithmetic mean - pass in 'add', and 'divide' funcs
+aM := average(add, div, 1, 2, 3, 4, 5)
+fmt.Printf("Arithmetic mean = %f\n", aM)
+// Arithmetic mean = 3.000000
+
+// geometric mean - pass in 'product' and 'nth root' funcs
+gM := average(prod, 
+              func(a, l int) float64{
+              	return math.Pow(float64(a), 1.0 / float64(l))
+              }, 
+              1, 2, 3, 4, 5)
+fmt.Printf("Geometric mean = %f\n", gM)
+// Geometric mean = 2.605171
+}
+
+// ...
+// helper functions used above
+func add(a int, b int) int{
+  return a + b
+}
+func prod(a, b int) int{
+  return a * b
+}
+func div(a, l int) float64{
+  return float64(a) / float64(l)
+}
+```
+
+**`average`** is a very interesting function. It accepts two functions **`comb`** and **`norm`** that can be used to define how the `int` values passed in should be _combined_ and _normalised_. Then we are able to use the same function to calculate _arithmetic mean_ and _geometric mean_, simply by changing the way the values are _combined_ and _normalised_ - for _arithmetic mean_ we **`add`** the values and **`div`** by the number of values, whereas for _geometric mean_ we take the **`prod`** of the values and then take the **nth root`** of the result.
+
+This gives as very powerful way to abstract away common code, break it up into reusable functions that can be combined in different ways.
+
+Another common example would be to filter a collection dynamically based on different criteria.
+
+```go
+// function to filter int slice based on predicate
+func filter(nums []int, pred func(int) bool) []int{
+  var res []int
+  for _, n := range nums{
+    if pred(n){
+      res = append(res, n)
+    }
+  }
+  return res
+}
+
+// using 'filter' to get filter only odd numbers
+ns := []int{1, 2, 3, 4, 5, 6, 7, 8, 9}
+odds := filter(ns, func (x int) bool {
+    return x % 2 != 0
+})
+// using 'filter' again to get only nums > 5
+bigOdds := filter(odds, func(x int) bool{
+    return x > 5
+})
+fmt.Printf("Big Odds are: %v\n", bigOdds)
+// Big Odds are: [7 9]
+```
+
+We are able to use a common **`filter`** function to filter a **slice** of integers differently using different **predicates**.
+
+###### Closures
+
