@@ -2512,3 +2512,351 @@ We are able to use a common **`filter`** function to filter a **slice** of integ
 
 ###### Closures
 
+A **closure** is a _function_ that is returned from another function. The function that creates and returns the _closure function_ can be thought of as a _function factory_ (there is nothing inherently special about that it, just a _higher order function_ that has a **function type** as a _return type_). The interesting thing about **closures** is that they can "**enclose**" _outer variables_ and retain a reference to them even after they are outside their original scope of declaration.
+
+```go
+// HOF returns a 'counting fucntion'
+// return type is a function type
+func getCounter(start int) func()int {
+  i := start - 1
+  // return an anonymous fucntion
+  return func () int {
+    // refernce outer variable
+    i++
+    return i
+  }
+}
+
+// ...
+
+// use 'getCounter' to get some counter function
+cntr := getCounter(10)
+fmt.Printf("counter = %d\n", cntr())	// counter = 10
+fmt.Printf("counter = %d\n", cntr())	// counter = 11
+```
+
+When a **closure** encloses outer referenced variables it becomes a **statefull function**, it is no longer **idempotent**.
+
+Whilst **closures** can be very handy tools, they have to be used carefully and possibly in _localised scope_. It is not a good practice to have long lived _statefull functions_ as the program behaviour will be harder to determine or troubleshoot. Sometimes the results may not be intuitive, especially if the enclosed variable/s are modified.
+
+```go
+// returns a slice of 'counter functions'
+func counters(n int) []func() int{
+  var cs []func() int
+
+  for i := 1; i <= n; i++{
+    cs = append(cs, func() int{
+      // closure references loop variable 'i'
+      return i
+    })
+  }
+  return cs
+}
+// ...
+// iterate though the slice of closures & invoke them
+for _, f := range counters(5){
+    fmt.Printf("f() = %d\n", f())
+}
+/*
+f() = 6
+f() = 6
+f() = 6
+f() = 6
+f() = 6
+*/
+```
+
+Well that is not quite what we had expected! Each **closure** instance in the **slice** references the same **loop variable**, which gets modified by the end of the loop to **`6`**. If we wanted each **closure instance** to have its own **enclosed variable**, we can modify the code slightly.
+
+```go
+// returns a slice of 'counter functions'
+func counters(n int) []func() int{
+  var cs []func() int
+
+  for i := 1; i <= n; i++{
+      // additional variable 'j' in loop scope
+      j := i
+      cs = append(cs, func() int{
+      // closure references variable 'j'
+      return j
+    })
+  }
+  return cs
+}
+// ...
+// iterate though the slice of closures & invoke them
+for _, f := range counters(5){
+    fmt.Printf("f() = %d\n", f())
+}
+/*
+f() = 1
+f() = 2
+f() = 3
+f() = 4
+f() = 5
+*/
+```
+
+Now each **closure** gets its own _copy_ of the enclosed variable (**`j`**).
+
+### Interfaces
+
+Similar to how we use **structs** for **encapsulation** in _Go_, we use **interfaces** to achieve **polymorphism**. A _Go_ **interface** is like in other languages, a **contract** that defines a set of **behaviours** as **function signatures**. Other types (like **structs**) can then **implement** the **interface** by providing **method implementations** for the **function signatures** specified in the **interface**. By doing so, we can treat that **struct** as **equivalent** to this **interface** (with respect to its supported behaviour). Since different **structs** can provide their own implementations for the **interface**, it gives us a mechanism for **polymorphic** behaviour.
+
+Unlike most other languages (such as _Java_, _C#_, _Typescript_) where a **type** explicitly declares the intent of implementation clear (for example in _Typescript_ we might have `class StreamReader implements IReader`), in _Go_ the **type** simply has to implement the **functions** of the **interface** as **methods**, and _Go_ will figure out that the **type** is compatible with that **interface**.
+
+```go
+package main
+
+import (
+  "fmt"
+  "math"
+)
+
+// an interface defining some shape behaviour
+type Shape interface{
+  Area() float64
+}
+
+type Rectangle struct{
+  Length, Breadth float64
+}
+
+// implement the 'Shape' functoins for 'Rectangle'
+func (r Rectangle) Area() float64{
+  return r.Length * r.Breadth
+}
+
+type Circle struct{
+  Radius float64
+}
+
+// implement the 'Shape' functoins for 'Circle'
+func (c Circle) Area() float64{
+  return math.Pi * c.Radius * c.Radius
+}
+
+// function - take two shape and find bigger
+func BiggerShape(s1, s2 Shape){
+  b := s1
+  if s2.Area() > s1.Area(){
+    b = s2
+  }
+  fmt.Printf("%v is bigger, with area = %f\n", b, b.Area())
+}
+
+func main() {
+  c1 := Circle{Radius: 13}
+  r1 := Rectangle{Length: 26, Breadth: 26}
+
+  BiggerShape(c1, r1)
+}
+// {13} is bigger, with area = 530.929158
+```
+
+The function **`BiggerShape`** takes two **`Shape`** parameters and finds the bigger one based on the **`Area`**. Since both **`Rectangle`** and **`Circle`** implement the functions of the the interface **`Shape`**, instances of both these types are **"equivalent"** to a **`Shape`**, i.e. any operation that accepts a **`Shape`** will be able to accept either of these structs.
+
+Note, that there is no _explicit notation_ indicating that **`Rectangle`** or **`Circle`** is a **`Shape`**. It is implied, and _Go_ can decipher that. This is similar to _TypeScript_, where any **type** that implements the **methods** of an **interface** is compliant with it.
+
+To be compatible with an **interface** a type has to implement **all it's functions**, if any **function** is not implemented and we try to assign or pass it as a variable of that **interface type**, we will get a compile time error. If we modify our **`Shape`** interface to add another function, then to be "equivalent" to it, the **structs** will also have to implement those as methods.
+
+```go
+// interface defining some shape behaviours
+type Shape interface{
+  Area() float64
+  Perimeter() float64
+}
+
+type Rectangle struct{
+  Length, Breadth float64
+}
+
+// To be considered as 'Shape, struct 'Rectangle' has to implement both functions
+
+// implement the'Shape' functoins for 'Rectangle'
+func (r Rectangle) Area() float64{
+  return r.Length * r.Breadth
+}
+
+// implement 'Perimeter' function 
+func (r Rectangle) Perimeter() float64{
+  return 2 * (r.Length + r.Breadth)
+}
+```
+
+Since _Go_ avoids a **class** or **inheritance** based approach, it relies heavily on **interfaces** for defining types and contracts. We will look a couple of examples that are used the standard library.
+
+##### `Stringer` Interface
+
+The **`Stringer`** **interface** is defined in the **`fmt`** package. Whenever we pass a type to a **print** function, it invokes the **`String`** method that the type implements of this **interface**. This is how it know how to print the type value.
+
+```go
+// definition of 'Stringer'interface
+type Stringer interface {
+    String() string
+}
+// 'print' functions will call the 'String()' method
+```
+
+This is a common pattern, in most programming languages. For example the **`Object.prototype.toString()`** method in _JavaScript_, or the **`Object.ToString()`** method in _C#_. However in both these cases, it relies on **Protypal Inheritance** (_JS_) or **Class based Inheritance** (_C#_). In _Go_ it is simpler and more decoupled through the **`Stringer`** interface. 
+
+We can use the **`Stringer`** interface to customise the way, objects of our types are printed. Let us get a more friendly way to display our **structs** from the above example.
+
+```go
+// implement 'String' func from 'Stringer' for 'Rectangle'
+func (r Rectangle) String() string {
+  return fmt.Sprintf("Rectangle { Length: %.2f, Breadth: %.2f }", 
+        r.Length, r.Breadth)
+}
+
+// implement 'String' func from 'Stringer' for 'Circle'
+func (c Circle) String() string {
+  return fmt.Sprintf("Circle { Radius: %.2f }", c.Radius)
+}
+
+// function - take two shape and find bigger
+func BiggerShape(s1, s2 Shape){
+  b := s1
+  if s2.Area() > s1.Area(){
+    b = s2
+  }
+  fmt.Printf("%v is the bigger, with area = %f\n", b, b.Area())
+}
+
+func main() {
+  c1 := Circle{Radius: 13}
+  r1 := Rectangle{Length: 13, Breadth: 13}
+
+  BiggerShape(c1, r1)
+
+}
+
+// output 
+// Circle { Radius: 13.00 } is the bigger, with area = 530.929158
+```
+
+We can see that the **`Printf`** function now automatically calls the modified **`String`** methods of our **structs** to gives a custom formatted output.
+
+###### The Empty Interface
+
+Since _Go_ is statically typed language, we need a way to represent data for which we do not know the type ahead of time (a common example is the **`Printx`** functions). The way to do that is using the **`interface{}`** (_Empty Interface_) type. Since this does not have any **functions**, _all types_ in _Go_ can satisfy the **empty interface**. We can think of it as `java.lang.Object` in _Java_ or as the `any` type in _TypeScript_.
+
+```go
+// 'a1' of type 'empty interface'
+var a1 interface{};
+
+// set 'a1' to string
+a1 = "Some string value!"
+fmt.Println(a1)
+// Some string value!
+
+// set 'a1' to float
+a1 = 22.0/ 7.0
+fmt.Println(a1)
+// 3.142857142857143
+
+// set 'a1' to 'Circle'
+a1 = Circle{Radius: 3}
+fmt.Println(a1)
+// Circle { Radius: 3.00 }
+```
+
+###### Type Assertion
+
+_Go_ has a first class operation to check for **types** at runtime. This is especially useful when dealing with **`interface{}`** values. The syntax is **`variable_name.(Type)`** with which we can **assert** if a value is of a certain type or not.
+
+```go
+// print len & breadth of shape rect
+func LengthBreadth(val Shape) {
+  // type assertion, check shape is rectangle
+  r := val.(Rectangle)
+  // 'r' will be of type 'Rectangle'
+  fmt.Printf("length = %.2f; breadth = %.2f\n",r.Length, r.Breadth)
+}
+
+// invoke function with a 'Rectangle' object
+r1 := Rectangle{Length: 13, Breadth: 13}
+LengthBreadth(r1)
+// length = 13.00; breadth = 13.00
+```
+
+If the function receives a value of the type `Rectangle`, the **type assertion** operation checks and casts it to a variable of that type and then we can use it as a `Rectangle`.
+
+One issue with this check however is that if the actual type of the value is not a `Rectangle` the program will `Panic` and exit.
+
+```go
+// invoke function with a 'Circle' object
+c1 := Circle{Radius: 13}
+LengthBreadth(c1)
+// panic: interface conversion: main.Shape is main.Circle, not main.Rectangle
+```
+
+To handle this possibility we simply modify the left hand side of the assignment of the **type assertion** operation. The operation (like any other _Go_ operation that can potentially result in an error), supports **two** return values. The first is the **value** itself and the second is a **boolean** that indicates if the type assertion is true or false.
+
+```go
+func LengthBreadth(val Shape) {
+  // type assertion with error chechk
+  r, isR := val.(Rectangle)
+  if isR {
+    fmt.Printf("length = %.2f; breadth = %.2f\n",r.Length, r.Breadth)
+  } else {
+    fmt.Printf("Shape is not a Rectangle!\n")
+  }
+}
+// invoke function with a 'Circle' object
+c1 := Circle{Radius: 13}
+LengthBreadth(c1)
+// Shape is not a Rectangle!
+```
+
+Just by changing that assignment to two variables we can avoid the program from `Panic` and handle the error situation gracefully.
+
+The interesting thing is that, the act of receiving two return variables instead of one modifies the behaviour of the operation! (It is not because we checked the **boolean**). We can see that if we simply replace the **`isR`** with a placeholder.
+
+```go
+func LengthBreadth(val Shape) {
+  // type assertion with empty error chechk
+  r, _ := val.(Rectangle)
+  fmt.Printf("length = %.2f; breadth = %.2f\n",r.Length, r.Breadth)
+}
+// invoke function with a 'Circle' object
+c1 := Circle{Radius: 13}
+LengthBreadth(c1)
+// length = 0.00; breadth = 0.00
+```
+
+Now we don't get a `Panic` but we get some unexpected error which can be more troublesome!! So always use the **assertion error** check pattern and handle the error conditions explicitly.
+
+###### Type Switch
+
+Since we may typically end up doing **type assertion** against multiple types, _Go_ provides a handy syntax with the **type switch** construct.
+
+```go
+// demo func - print info based on type
+func PrintInfo(val interface{}){
+  switch val.(type){
+    case int:
+      fmt.Printf("Type: int; Value = %d\n", val.(int))
+    case float64:
+      fmt.Printf("Type: float64; Value = %0.2f\n", val.(float64))
+    case string: 
+      fmt.Printf("Type: string; Value = %s\n", val.(string))
+    case Shape:
+      fmt.Printf("Type: Shape; Area = %0.1f\n", val.(Shape).Area())
+    default:
+      fmt.Printf("Unhandled type for value = %v\n", val)
+  }
+}
+
+// invoke with varied types
+PrintInfo(23)			// Type: int; Value = 23
+PrintInfo(32.0)			// Type: float64; Value = 32.00
+PrintInfo("Bonjour")	// Type: string; Value = Bonjour
+PrintInfo(c1)			// Type: Shape; Area = 530.9
+PrintInfo(true)			// Unhandled type for value = true
+```
+
+
+
+### Concurrency
+
