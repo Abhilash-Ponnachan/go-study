@@ -233,7 +233,7 @@ The `$GOPATH`  environment variable serves TWO purposes, namely:
 
     **Evidently the `go` tool is searching for the `strutil` package relative to `$GOROOT/src` and `$GOPATH/src`.**
 
-  - The problem here is that my project is not in a `Go` **`workspace`**. It is in a path `~/tech/go-study` that is outside of it. There are TWO was to fix this problem:
+  - The problem here is that my project is not in a `Go` **`workspace`**. It is in a path `~/tech/go-study` that is outside of it. There are TWO ways to fix this problem:
 
     - Move the code to the `Go` `workspace` (the path `$GOPATH` points to, which is by default `~/go`). Traditionally `Go` developers keep all their `Go` projects within this directory hierarchy.
 
@@ -269,7 +269,192 @@ The `$GOPATH`  environment variable serves TWO purposes, namely:
 
 ### Go Modules
 
-<To Do>
+Prior to **modules** we only had the concept of **packages** and `GOPATH` to help us manage _dependencies_ used by our _Go_ project. Those dependencies could be _local dependencies (first-party dependencies)_ that we wrote locally as different **packages** that we _imported_, OR they could be _third-party dependencies (packages written by someone else)_ that we _imported_ from some _VCS repository_ (like `github.com`).
+
+In this configuration `GOPATH` served two purposes:
+
+- The **`go`** _tool_ would try to locate all `imported` packages relative to the `GOPATH/src` (or `GOROOT/src`). 
+- All _dependencies_ fetched by the **`go get`** command would be saved into `GOPATH`.
+
+This early approach was driven mostly by the giant _monorepo_ style at _Google_. In the broader community however, this had some disadvantages, mainly:
+
+- All _Go_ projects needed to be in the `GOPATH`. We could not checkout a project into a directory of our choice, like we would do in most other languages.
+- Also we could always checkout only one version of a package(and its dependencies) at any one time.
+
+_Go 1.11_ introduced the concept of **Modules** to better manage project dependencies. A **module** in _Go_ is physically _a collection of Go **packages** stored in a filesystem **tree** with a **`go.mod`** file at its root._
+
+The **`go.mod`** defines the **module path** and lists the **dependencies** needed for the project. It is similar in some ways to **`package.json`** in _Node.js_ (though there are many differences as well).
+
+ **Modules** are no longer limited to `GOPATH`, they can be in any directory. To start a **module** we use the **`go mod init`** command followed by the _module name_ in a directory of our choice. This will create a **`go.mod`** file with basic information such as the _name of the module_ and the _version of Go_.
+
+Let us create a simple project that should help work through the basic concepts of _Go_ **modules**. The application prompts the user to input a number into the terminal (`stdin`) and then checks and responds if it is a **prime number** or _not_. It will be organised as two **packages** - an _application_ that serves as the frontend (interacts with the user), and a _library_ that encapsulates the logic/mathematics of prime checking. Both these **packages** will be in a _parent directory_. This directory structure can be anywhere in our filesystem, as we like to organise our projects. Our filesystem tree will look like.
+
+```bash
+$ tree
+.
+└── checkprime				# parent directory
+    ├── checkprimeapp		# frontend app - package (binary)
+    │   └── primeapp.go
+    └── primecalc			# library package used by frontend
+        └── primecalc.go
+```
+
+_Remember at this point we have not specified ore created any modules_.
+
+Also for the sake of avoiding unnecessary complexity & noise we are deviating from the idiomatic _Go "convention"_ of naming **packages** with `<version control system>.<repository>.<package name>`. Normally our **packages** may be more like `github.com/alex/checkprime/primecalc`. This is a good practice in actual projects but not necessary for the tools to work. In fact for demonstrating the concepts it might be better to avoid it for now.
+
+Now we can write some code in our _Go_ source files to make provide this capability.
+
+```go
+//checkprime/primecalc/primecalc.go
+package primecalc
+
+import "math"
+
+// IsPrime - naive algorithm to check divisibility
+// till square root of num
+func IsPrime(num int) bool {
+	prime := true
+	fnum := float64(num)
+	gmid := int(math.Ceil(math.Sqrt(fnum)))
+	for d := 2; d <= gmid; d++ {
+		if math.Mod(fnum, float64(d)) == 0 {
+			prime = false
+			break
+		}
+	}
+	return prime
+}
+```
+
+**Package** `primecalc` exports a single function `Isprime` that has a simple implementation to check if the argument passed in is a prime number or not.
+
+```go
+// checkprime/checkprimeapp/primeapp.go
+package main
+
+import (
+	"checkprime/primecalc"
+	"fmt"
+	"os"
+	"strconv"
+)
+
+func main() {
+	fmt.Println("Enter an integer to check if it is Prime or Not:")
+	fmt.Print(">> ")
+
+	var x string
+	fmt.Scanln(&x)
+
+	// try converting to integer
+	i, e1 := strconv.Atoi(x)
+
+	if e1 != nil {
+		fmt.Printf("Invalid input : '%s'\n", e1.Error())
+		os.Exit(1)
+	}
+
+	// if reached here, 'i' is a valid integer
+	if primecalc.IsPrime(i) {
+		fmt.Printf("%d is Prime.\n", i)
+	} else {
+		fmt.Printf("%d is Not Prime!\n", i)
+	}
+
+}
+```
+
+The _binary_ **package** `checkprimeapp` references (`imports`) the `primecalc` **package** and uses the exported function.
+
+However even within the IDE we can see the **compiler error** - `"cannot find package "checkprime/primecalc" in any of: ... $GOROOT, from $GOPATH)"`. So without the benefit of **modules** the **`go`** _tools_ are still looking in the `$GOPATH` or `GOROOT` for the referenced packages.
+
+To resolve this we simply make the _parent directory_ a _Go_ **module**. From within the _parent directory_ we use the `go mod init` command.
+
+```bash
+$ go mod init checkprime
+go: creating new go.mod: module checkprime
+```
+
+Now we should see a **`go.mod`** file in that _parent directory_.
+
+```bash
+$ tree
+.
+└── checkprime
+    ├── checkprimeapp
+    │   └── primeapp.go
+    ├── go.mod				# module definition file
+    └── primecalc
+        └── primecalc.go
+```
+
+Initially our **`go.mod`** file only contains very basic information.
+
+```go
+// chechkprime/go.mod
+module checkprime
+
+go 1.15
+```
+
+Just by doing that, our compile error goes away. Now the **`go`** _tools_ can find our _referenced package_ (`"checkprime/primecalc"`). _Note_ that the **package reference** is _with respect to_ the **module**.
+
+Now we can **`run`** or **`build`** our main application and we should get an executable binary that does what we programmed it to do.
+
+```bash
+$ cd checkprimeapp && go build
+$ ls
+checkprimeapp  primeapp.go
+```
+
+```bash
+$ ./checkprimeapp 
+Enter an integer to check if it is Prime or Not:
+>> 23
+23 is Prime.
+```
+
+So, now we know how to reference _local dependencies/packages_ using **modules**, and how it does not need the `GOPATH`.
+
+What about _external (third-party) dependencies_? let us enhance our example to prettify our printing to the console by making it colourful. To do this we can use a **module** written by someone else (**`github.com/fatih/color`**) instead of solving for that ourselves. 
+
+To do this we can do a **`go get github.com/fatih/color`** and it should do the following:
+
+- Pull down the **module** source from the _GitHub_ repository to **`$GOPATH/mod`**
+
+  ```bash
+  # downloaded module
+  $ tree -L 3 ~/go/pkg/
+  /home/abhi/go/pkg/
+  ├── mod
+  │   ├── cache
+  │   │   ├── download
+  │   │   └── lock
+  │   ├── github.com
+  │   │   ├── acroca
+  │   │   ├── cosiner
+  │   │   ├── cpuguy83
+  │   │   ├── cweill
+  │   │   ├── fatih			# the module we pulled down
+  │   │   ├── go-delve
+  ```
+
+- Add a **`require`** entry in the **`go.mod`** file for the dependency
+
+  ```go
+  module checkprime
+  
+  go 1.15
+  
+  require github.com/fatih/color v1.12.0		// dependency including the version
+  ```
+
+- Create a **`go.sum`** file with the checksum information for the dependencies. This will normally have two lines, one is a hash of the _content_ and the other is a hash of the _transitive dependencies_. This file can be checked in or distributed with your code to ensue that when someone else who uses your code _gets_ these transitive dependencies they are not tampered with and are indeed the ones you included in your original build.
+
+- 
+
+
 
 ### `go` commands `run`, `build`, `install`
 
