@@ -421,7 +421,7 @@ What about _external (third-party) dependencies_? let us enhance our example to 
 
 To do this we can do a **`go get github.com/fatih/color`** and it should do the following:
 
-- Pull down the **module** source from the _GitHub_ repository to **`$GOPATH/mod`**
+- Pull down the **module** source from the _GitHub_ repository to **`$GOPATH/mod`**. Unless a version is specified, it will pull the latest release tag, if there is no tag it will pull the latest commit.
 
   ```bash
   # downloaded module
@@ -452,7 +452,225 @@ To do this we can do a **`go get github.com/fatih/color`** and it should do the 
 
 - Create a **`go.sum`** file with the checksum information for the dependencies. This will normally have two lines, one is a hash of the _content_ and the other is a hash of the _transitive dependencies_. This file can be checked in or distributed with your code to ensue that when someone else who uses your code _gets_ these transitive dependencies they are not tampered with and are indeed the ones you included in your original build.
 
-- 
+  ```go
+  // checkprime/go.sum
+  github.com/fatih/color v1.12.0 h1:mRhaKNwANqRgUBGKmnI5ZxEk7QXmjQeCcuYFMX2bfcc=
+  github.com/fatih/color v1.12.0/go.mod h1:ELkj/draVOlAH/xkhN6mQ50Qd0MPOk5AAr3maGEBuJM=
+  github.com/mattn/go-colorable v0.1.8 h1:c1ghPdyEDarC70ftn0y+A/Ee++9zz8ljHG1b13eJ0s8=
+  github.com/mattn/go-colorable v0.1.8/go.mod h1:u6P/XSegPjTcexA+o6vUJrdnUu04hMope9wVRipJSqc=
+  github.com/mattn/go-isatty v0.0.12 h1:wuysRhFDzyxgEmMf5xjvJ2M9dZoWAXNNr5LSBS7uHXY=
+  github.com/mattn/go-isatty v0.0.12/go.mod h1:cbi8OIDigv2wuxKPP5vlRcQ1OAZbq2CE4Kysco4FUpU=
+  golang.org/x/sys v0.0.0-20200116001909-b77594299b42/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+  golang.org/x/sys v0.0.0-20200223170610-d5e6a3e2c0ae h1:/WDfKMnPU+m5M4xB+6x4kaepxRw6jWvR5iDRdvjHgy8=
+  golang.org/x/sys v0.0.0-20200223170610-d5e6a3e2c0ae/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+  ```
+
+  We can see the dependencies (direct and transitive) better using the **`graph`** command.
+
+  ```bash
+  $ go mod graph
+  checkprime github.com/fatih/color@v1.12.0
+  github.com/fatih/color@v1.12.0 github.com/mattn/go-colorable@v0.1.8
+  github.com/fatih/color@v1.12.0 github.com/mattn/go-isatty@v0.0.12
+  github.com/mattn/go-isatty@v0.0.12 golang.org/x/sys@v0.0.0-20200116001909-b77594299b42
+  github.com/mattn/go-colorable@v0.1.8 github.com/mattn/go-isatty@v0.0.12
+  github.com/mattn/go-colorable@v0.1.8 golang.org/x/sys@v0.0.0-20200223170610-d5e6a3e2c0ae
+  ```
+
+- Now we should be able to go and **`import`** that module into our code and use it.
+
+  ```go
+  // checkprime/checkprimeapp/primeapp.go
+  package main
+  
+  import (
+  	"checkprime/primecalc"
+  	"fmt"
+  	"os"
+  	"strconv"
+  
+  	"github.com/fatih/color"				// imported 3rd party dependency
+  )
+  
+  func main() {
+  	// print in color using imported package
+  	c1 := color.New(color.FgCyan).Add(color.Bold)
+  	c1.Println("Enter an integer to check if it is Prime or Not:")
+  	c1.Print(">> ")
+  	//...
+  }
+  ```
+
+  Normally our **IDEs** such as **VS Code** or **IntelliJ** would automatically call **`go get`** behind the scene (**and** add the **`require`** dependencies into our **`go.mod`** file) when we simply **`import`** a **module** in our code.
+
+The **`go mod`** provides many functionalities to manage dependencies across their lifecycle, and the **`help`** option lists them out.
+
+```bash
+$ go mod help
+Go mod provides access to operations on modules.
+....
+Usage:
+
+	go mod <command> [arguments]
+
+The commands are:
+
+	download    download modules to local cache
+	edit        edit go.mod from tools or scripts
+	graph       print module requirement graph
+	init        initialize new module in current directory
+	tidy        add missing and remove unused modules
+	vendor      make vendored copy of dependencies
+	verify      verify dependencies have expected content
+	why         explain why packages or modules are needed
+```
+
+Besides **`go mod`**, the **`go get`** command is one we would often use.
+
+```bash
+$ go get 			# adds a new dependency
+$ go get -u 		# updates a minor version
+$ go get -u=patch 	# updates dependency to patch version
+```
+
+##### Local Dependencies
+
+When dealing with _third-party dependencies_ or _VCS based dependencies_ (that get pulled from some _repository_) the functioning of **`go mod`** is pretty straightforward. However when we want to just organise our code with _local dependencies_ (that we may not push to a VCS like `github.com`, at least not initially), there are a few things that we have to keep in mind and _explicitly_ handle. This can have a couple of different scenarios.
+
+###### Local Package (under same Parent Directory)
+
+We have seen this already in our example, where the **`checkprimeapp/primeapp.gp`** references the **`primecalc/primecalc.go`** using the **`import "chechkprime/primecalc"`** statement. They are both different **packages**  within the same parent directory **`checkprime`** which is a **module**. This is the most simple way to organise our code, and the _Go_ compiler will know where to look for the dependencies within the same _parent (module) directory_.
+
+###### Different Local Module
+
+Now suppose we wish to _reuse_ our **`primecalc`** package more generally with some other applications as well, we could move it out of the **`chechprime`** **module**, into its own directory. Now our directory tree might look like:
+
+```bash
+$ tree
+.
+├── checkprime
+│   ├── checkprimeapp
+│   │   └── primeapp.go
+│   ├── go.mod
+│   └── go.sum
+└── primecalc
+    └── primecalc
+        └── primecalc.go
+```
+
+But now, the compiler (even our IDE) will throw an error about our **`import "primecalc/primecalc"`** statement within the **`checkprime/primeapp.go`**. Now that it is outside the path of the **module** _tree_, _Go_ will not be able to locate that **package** (unless it is in the **`$GOROOT`**). To make this work, we will have to make our **`primecalc`** a **module**.
+
+```bash
+~/primecalc$ go mod init primecalc
+go: creating new go.mod: module primecalc
+```
+
+Now we have a **module** named **`primecalc`** with its own **`go.mod`** file and a **package** within it by the same name.
+
+```go
+// primecalc/go.mod
+module primecalc
+ 
+go 1.15
+```
+
+In order to be able to use this from our **`checkprime/chechkprimeapp/primeapp.go`** we have to add this its _module dependencies_ in the **`go.mod`** file.
+
+```go
+// chechkprime/go.mod
+module checkprime
+
+go 1.15
+
+require github.com/fatih/color v1.12.0
+require primecalc/primecalc
+```
+
+Now in the **`checkprime/checkprimeapp/primeapp.go`** source code we can go and **`import`** that **module**.
+
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+	"primecalc/primecalc"		// try importlocal module
+	"strconv"
+
+	"github.com/fatih/color"
+)
+
+func main() {
+//..
+}
+
+```
+
+Unfortunately this will Not Work! First we will get an error in the **`checkprime/go.mod`** file implying that it needs a _version_ for the **module** dependency.
+
+```bash
+~/checkprime/checkrimeapp$ go build
+go: errors parsing go.mod:
+~/checkprime/go.mod:6: usage: require module/path v1.2.3
+```
+
+let us just try adding some _version_ number. So the **`go.mod`** will now look like:
+
+```go
+// chechkprime/go.mod
+module checkprime
+
+go 1.15
+
+require github.com/fatih/color v1.12.0
+require primecalc/primecalc v1.0.0
+```
+
+But now we will get a different error!
+
+```bash
+~/checkprime/checkrimeapp$ go build
+go: primecalc/primecalc@v1.0.0: malformed module path "primecalc/primecalc": missing dot in first path element
+```
+
+The reason for this is that the **`require`** _keyword_ expects the referenced **module** to be part of some _VCS repository_ like `github.com`. In order to make this work we will need to use the **`replace`** keyword and _map_ the **module** to the _local directory_! So our **`checkprime/go.mod`** file would look like:
+
+```go
+// checkprime/go.mod
+module checkprime
+
+go 1.15
+
+require (
+	github.com/fatih/color v1.12.0
+	primecalc v0.0.0
+)
+
+replace primecalc => ../primecalc		// filesystem path to local module
+```
+
+Note, that we still have to specify the dependency in the **`require`**, but then the location is overridden with the **`replace`** directive. This will help _Go_ search for the **packages** we import from that **module**. Now our **`import "primecalc/primecalc"`** statement will work and we can build our application as before.
+
+This is how we can work with **local modules** that we do not need to pull from a _VCS_. Although this works just fine, the "typical Go" style would be to organise these **modules** in some _VCS/repository_ directory structure even on the local filesystem, even if we do not have them checked-in. Unless they are entirely throw away we are most likely going to push them there eventually, so it is a good practice to start with that directory structure to begin with. So if we follow that our directory structure may look something like:
+
+```bash
+$ tree
+.
+└── github.com
+    ├── checkprime
+    │   ├── checkprimeapp
+    │   │   └── primeapp.go
+    │   ├── go.mod
+    │   └── go.sum
+    └── primecalc
+        ├── go.mod
+        └── primecalc
+            └── primecalc.go
+```
+
+##### Vendoring
+
+
 
 
 
